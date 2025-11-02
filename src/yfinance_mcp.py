@@ -401,9 +401,10 @@ def yfinance_get_stock_recommendations(
         if recommendations is None or recommendations.empty:
             return format_response({"error": f"No recommendations found for {ticker}"}, response_format)
 
-        # Apply limit (get most recent N recommendations)
+        # Sort by date descending (newest first) and apply limit
+        recommendations = recommendations.sort_index(ascending=False)
         if limit > 0:
-            recommendations = recommendations.tail(limit)
+            recommendations = recommendations.head(limit)
 
         result = {
             "ticker": ticker,
