@@ -5,7 +5,7 @@ This MCP server provides tools to access Yahoo Finance data using the yfinance p
 Follows MCP best practices for tool naming, response formats, and error handling.
 """
 
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Union
 import yfinance as yf
 from datetime import datetime, timedelta
 from fastmcp import FastMCP
@@ -77,7 +77,7 @@ def _format_as_markdown(data: dict) -> str:
 )
 def yfinance_get_stock_info(
     ticker: str,
-    fields: Optional[List[str]] = None,
+    fields: Optional[Union[List[str], str]] = None,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -259,7 +259,7 @@ def yfinance_get_stock_financials(
     ticker: str,
     statement_type: Literal["income", "balance", "cashflow"] = "income",
     limit: int = 4,
-    fields: Optional[List[str]] = None,
+    fields: Optional[Union[List[str], str]] = None,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -524,7 +524,7 @@ def yfinance_get_stock_news(
     }
 )
 def yfinance_get_multiple_quotes(
-    tickers: List[str],
+    tickers: Union[List[str], str],
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
