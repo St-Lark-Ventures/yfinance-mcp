@@ -686,10 +686,6 @@ def yfinance_get_earnings_dates(
         # Get earnings dates
         earnings_dates = stock.earnings_dates
 
-        # Get next earnings date from info
-        info = stock.info
-        next_earnings = info.get("earningsTimestamp")
-
         if earnings_dates is None or earnings_dates.empty:
             return format_response({"error": f"No earnings dates found for {ticker}"}, response_format)
 
@@ -703,18 +699,32 @@ def yfinance_get_earnings_dates(
                 now = pd.Timestamp.now()
             earnings_dates = earnings_dates[earnings_dates.index > now]
 
+        # Check if we have any earnings dates after filtering
+        if earnings_dates.empty:
+            return format_response({
+                "error": f"No {'future ' if future_only else ''}earnings dates found for {ticker}",
+                "note": "yfinance may have limited future earnings data available"
+            }, response_format)
+
         # Apply limit (get most recent N earnings dates)
         if limit > 0:
             earnings_dates = earnings_dates.head(limit)
 
+        # Get next earnings date from actual filtered data (more reliable than info)
+        next_earnings_from_data = earnings_dates.index[0] if not earnings_dates.empty else None
+
         result = {
             "ticker": ticker,
-            "next_earnings_date": datetime.fromtimestamp(next_earnings).strftime("%Y-%m-%d %H:%M:%S") if next_earnings else "N/A",
+            "next_earnings_date": next_earnings_from_data.strftime("%Y-%m-%d") if next_earnings_from_data else "N/A",
             "count": len(earnings_dates),
             "limit_applied": limit,
             "future_only": future_only,
             "earnings_history": []
         }
+
+        # Add note if fewer results than requested
+        if future_only and len(earnings_dates) < limit:
+            result["note"] = f"Only {len(earnings_dates)} future earnings date(s) available. yfinance typically provides 1-2 quarters of future data."
 
         for index, row in earnings_dates.iterrows():
             earnings_info = {
