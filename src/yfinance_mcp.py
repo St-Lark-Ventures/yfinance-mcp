@@ -298,7 +298,7 @@ def yfinance_get_stock_financials(
 
         # Select the appropriate financial statement based on type and period
         if statement_type == "income":
-            financials = stock.quarterly_financials if period == "quarterly" else stock.yearly_financials
+            financials = stock.quarterly_financials if period == "quarterly" else stock.financials
             statement_name = "Income Statement"
         elif statement_type == "balance":
             financials = stock.quarterly_balance_sheet if period == "quarterly" else stock.balance_sheet
