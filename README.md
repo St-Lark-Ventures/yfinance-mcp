@@ -121,26 +121,41 @@ Once configured with Claude Desktop, you can ask questions like:
 - "What's the current stock price of Apple?"
 - "Show me comprehensive info for TSLA in JSON format"
 - "Compare quotes for AAPL, MSFT, and GOOGL"
+- "What sector and industry is Microsoft in?" *(uses fields parameter)*
+- "Just show me the price and PE ratio for NVDA" *(uses fields parameter)*
+- "Get just the basic valuation metrics for AAPL" *(uses fields parameter)*
 
 **Historical Data:**
 - "Show me Tesla's price history over the past 6 months"
 - "Get AAPL historical data for the past year with weekly intervals"
+- "What were the last 30 days of price data for MSFT?" *(uses limit parameter)*
+- "Give me a summary of AAPL's price performance over the last year" *(uses summary_only parameter)*
+- "Show me just the last week of trading data for GOOGL" *(uses limit parameter)*
+- "What's the high, low, and average price for TSLA this year?" *(uses summary_only parameter)*
 
 **Financial Statements:**
 - "Get Microsoft's income statement"
 - "Show me Apple's balance sheet in JSON format"
 - "What's Google's cash flow statement?"
+- "Show me just the revenue and net income for AAPL over the last 2 quarters" *(uses fields and limit parameters)*
+- "What's Tesla's total revenue for the most recent quarter?" *(uses fields and limit parameters)*
+- "Get the key profitability metrics from MSFT's latest income statement" *(uses fields and limit parameters)*
 
 **Earnings & Options:**
 - "When is Apple's next earnings call?"
 - "Show me the earnings history for MSFT"
 - "Get the options chain for TSLA"
 - "Show me AAPL options expiring on 2024-12-20"
+- "What are the next 3 upcoming earnings dates for GOOGL?" *(uses future_only and limit parameters)*
+- "Show me just the last 4 earnings reports for NVDA" *(uses limit parameter)*
+- "When are the next earnings calls for TSLA?" *(uses future_only parameter)*
 
 **Market Intelligence:**
 - "What are the latest analyst recommendations for Google?"
 - "Show me recent news about Amazon stock"
 - "Get the top 5 news articles for NVDA"
+- "What are the 5 most recent analyst ratings for AAPL?" *(uses limit parameter)*
+- "Show me the last 10 analyst recommendations for MSFT" *(uses limit parameter)*
 
 ## Available Tools
 
