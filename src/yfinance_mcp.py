@@ -781,39 +781,28 @@ def yfinance_get_options_chain(
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
-    Get options chain data (calls and/or puts) for a stock with filtering capabilities.
+    Get options chain data for a stock. Returns call options near current price for the nearest expiration by default.
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
-        expiration_date: Specific expiration date in 'YYYY-MM-DD' format. If None, uses nearest expiration (default: None)
-        dte: Days to expiration - finds expiration closest to N days out. Overrides expiration_date if both specified (default: None)
-        option_type: Type of options to return - 'calls', 'puts', or 'both' (default: 'calls')
-        strikes_near_price: Number of strikes to show above and below current price. None = all strikes (default: 10)
-        in_the_money: Filter by ITM status - True for ITM only, False for OTM only, None for all (default: None)
-        min_volume: Minimum trading volume filter (default: None)
+        expiration_date: Optional expiration date in 'YYYY-MM-DD' format (default: nearest)
+        dte: Optional days to expiration (e.g., 30 for monthly options) (default: None)
+        option_type: 'calls', 'puts', or 'both' (default: 'calls')
+        strikes_near_price: Number of strikes above/below current price, or None for all (default: 10)
+        in_the_money: True for ITM, False for OTM, None for both (default: None)
+        min_volume: Minimum volume filter (default: None)
         min_open_interest: Minimum open interest filter (default: None)
-        strike_min: Minimum strike price filter (default: None)
-        strike_max: Maximum strike price filter (default: None)
-        response_format: Output format - 'json' or 'markdown' (default: 'markdown')
+        strike_min: Minimum strike price (default: None)
+        strike_max: Maximum strike price (default: None)
+        response_format: 'json' or 'markdown' (default: 'markdown')
 
     Returns:
-        Formatted string containing options data including:
-        - Available expiration dates (if no date specified)
-        - Current stock price (when strikes_near_price is used)
-        - Selected expiration date and filters applied
-        - For each option: contract symbol, strike, last price, bid, ask, change, percent change,
-          volume, open interest, implied volatility, in the money status, last trade date,
-          contract size, currency
+        Options chain data with contract details, prices, volume, open interest, and implied volatility.
 
     Example:
-        yfinance_get_options_chain("AAPL")  # Calls near current price, nearest expiration
-        yfinance_get_options_chain("AAPL", dte=30)  # Calls ~30 days out
-        yfinance_get_options_chain("AAPL", option_type="both", strikes_near_price=5)  # Calls & puts very near the money
-        yfinance_get_options_chain("AAPL", in_the_money=True, min_volume=100)  # ITM calls with volume >= 100
-        yfinance_get_options_chain("AAPL", strikes_near_price=None)  # All available call strikes
-
-    Note: strikes_near_price and in_the_money filters work together. For example, strikes_near_price=10 with
-    in_the_money=False shows the 10 nearest OTM strikes above current price (for calls).
+        yfinance_get_options_chain("AAPL")
+        yfinance_get_options_chain("TSLA", dte=30)
+        yfinance_get_options_chain("NVDA", option_type="both")
     """
     try:
         stock = yf.Ticker(ticker)
