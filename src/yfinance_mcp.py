@@ -293,8 +293,14 @@ def yfinance_get_stock_recommendations(
         }
 
         for index, row in recommendations.iterrows():
+            # Handle index that might be datetime or other type
+            if hasattr(index, 'strftime'):
+                date_str = index.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                date_str = str(index)
+
             rec = {
-                "date": index.strftime("%Y-%m-%d %H:%M:%S"),
+                "date": date_str,
                 "firm": str(row.get("Firm", "N/A")),
                 "to_grade": str(row.get("To Grade", "N/A")),
                 "from_grade": str(row.get("From Grade", "N/A")),
