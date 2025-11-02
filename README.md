@@ -150,14 +150,17 @@ Get comprehensive information about a stock.
 
 **Parameters:**
 - `ticker` (string): Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
+- `fields` (list of strings, optional): Specific fields to return. Available fields: name, price, currency, market_cap, pe_ratio, forward_pe, dividend_yield, 52_week_high, 52_week_low, avg_volume, sector, industry, description. Uses case-insensitive partial matching (default: None, returns all fields)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
-- Stock name, current price, market cap, PE ratios, dividend yield, 52-week high/low, sector, industry, description
+- Stock name, current price, market cap, PE ratios, dividend yield, 52-week high/low, sector, industry, description (all fields or filtered subset)
 
 **Example:**
 ```python
 yfinance_get_stock_info("AAPL", "json")
+yfinance_get_stock_info("TSLA", fields=["price", "market_cap", "pe_ratio"])
+yfinance_get_stock_info("MSFT", fields=["sector", "industry"])
 ```
 
 ---
@@ -170,14 +173,18 @@ Get historical price data for a stock.
 - `ticker` (string): Stock ticker symbol
 - `period` (string, optional): Time period - 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max (default: '1mo')
 - `interval` (string, optional): Data interval - 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo (default: '1d')
+- `limit` (int, optional): Maximum number of most recent data points to return (default: None, returns all)
+- `summary_only` (bool, optional): If True, return summary statistics instead of all data points - includes high, low, avg close, total volume, start/end dates (default: False)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
-- Historical data with dates, open, high, low, close, and volume
+- Historical data with dates, open, high, low, close, and volume (or summary statistics if summary_only=True)
 
 **Example:**
 ```python
 yfinance_get_stock_history("AAPL", "1y", "1d", "json")
+yfinance_get_stock_history("AAPL", "1y", "1d", limit=30)  # Last 30 days only
+yfinance_get_stock_history("AAPL", "1y", "1d", summary_only=True)  # Just summary
 ```
 
 ---
@@ -189,14 +196,18 @@ Get financial statements for a stock.
 **Parameters:**
 - `ticker` (string): Stock ticker symbol
 - `statement_type` (string, optional): 'income', 'balance', or 'cashflow' (default: 'income')
+- `limit` (int, optional): Maximum number of most recent periods to return (default: 4)
+- `fields` (list of strings, optional): Specific financial fields to return. Uses case-insensitive partial matching. Example fields: 'revenue', 'net income', 'total assets', 'cash', etc. (default: None, returns all fields)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
-- Financial statement data organized by date (typically 4 quarters)
+- Financial statement data organized by date (all fields or filtered subset)
 
 **Example:**
 ```python
 yfinance_get_stock_financials("AAPL", "income", "json")
+yfinance_get_stock_financials("AAPL", "income", limit=2)  # Last 2 quarters only
+yfinance_get_stock_financials("AAPL", "income", fields=["revenue", "net income"])
 ```
 
 ---
@@ -207,6 +218,7 @@ Get analyst recommendations for a stock.
 
 **Parameters:**
 - `ticker` (string): Stock ticker symbol
+- `limit` (int, optional): Maximum number of most recent recommendations to return (default: 20)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
@@ -215,6 +227,7 @@ Get analyst recommendations for a stock.
 **Example:**
 ```python
 yfinance_get_stock_recommendations("AAPL", "json")
+yfinance_get_stock_recommendations("AAPL", limit=10)  # Last 10 recommendations only
 ```
 
 ---
@@ -280,15 +293,19 @@ Get earnings calendar information with historical and upcoming dates.
 
 **Parameters:**
 - `ticker` (string): Stock ticker symbol
+- `limit` (int, optional): Maximum number of earnings dates to return (default: 12)
+- `future_only` (bool, optional): If True, return only future/upcoming earnings dates (default: False)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
 - Next earnings date
-- Historical earnings with EPS estimates, reported EPS, and surprise percentages
+- Historical earnings with EPS estimates, reported EPS, and surprise percentages (or future only if future_only=True)
 
 **Example:**
 ```python
 yfinance_get_earnings_dates("AAPL", "json")
+yfinance_get_earnings_dates("AAPL", limit=4)  # Last 4 earnings dates only
+yfinance_get_earnings_dates("AAPL", future_only=True)  # Only upcoming earnings
 ```
 
 ---

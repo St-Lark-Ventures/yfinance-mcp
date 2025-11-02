@@ -77,6 +77,7 @@ def _format_as_markdown(data: dict) -> str:
 )
 def yfinance_get_stock_info(
     ticker: str,
+    fields: Optional[List[str]] = None,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -84,6 +85,10 @@ def yfinance_get_stock_info(
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
+        fields: Optional list of field names to include (case-insensitive partial matching).
+                Available fields: name, price, currency, market_cap, pe_ratio, forward_pe,
+                dividend_yield, 52_week_high, 52_week_low, avg_volume, sector, industry, description
+                (default: None, returns all fields)
         response_format: Output format - 'json' for structured data, 'markdown' for human-readable (default: 'markdown')
 
     Returns:
@@ -99,7 +104,8 @@ def yfinance_get_stock_info(
 
     Example:
         yfinance_get_stock_info("AAPL", "json")
-        yfinance_get_stock_info("TSLA", "markdown")
+        yfinance_get_stock_info("TSLA", ["price", "market_cap", "pe_ratio"], "markdown")
+        yfinance_get_stock_info("MSFT", fields=["sector", "industry"])
     """
     try:
         stock = yf.Ticker(ticker)
@@ -123,6 +129,21 @@ def yfinance_get_stock_info(
             "description": info.get("longBusinessSummary", "N/A")[:500] if info.get("longBusinessSummary") else "N/A",
         }
 
+        # Filter fields if specified
+        if fields is not None and len(fields) > 0:
+            filtered_result = {"ticker": ticker}  # Always include ticker
+            available_fields = list(result.keys())
+
+            for field in fields:
+                field_lower = field.lower()
+                # Find matching field using case-insensitive partial matching
+                for available_field in available_fields:
+                    if field_lower in available_field.lower():
+                        filtered_result[available_field] = result[available_field]
+                        break
+
+            result = filtered_result
+
         return format_response(result, response_format)
     except Exception as e:
         return format_response({"error": f"Failed to fetch stock info for {ticker}: {str(e)}. Verify the ticker symbol is correct."}, response_format)
@@ -138,6 +159,8 @@ def yfinance_get_stock_history(
     ticker: str,
     period: str = "1mo",
     interval: str = "1d",
+    limit: Optional[int] = None,
+    summary_only: bool = False,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -147,15 +170,19 @@ def yfinance_get_stock_history(
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
         period: Time period - valid values: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max (default: '1mo')
         interval: Data interval - valid values: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo (default: '1d')
+        limit: Maximum number of most recent data points to return (default: None, returns all)
+        summary_only: If True, return summary statistics instead of all data points (default: False)
         response_format: Output format - 'json' or 'markdown' (default: 'markdown')
 
     Returns:
-        Formatted string with historical price data including dates, open, high, low, close, volume.
-        Large datasets may be truncated; use shorter periods or larger intervals to reduce size.
+        Formatted string with historical price data or summary statistics.
+        When summary_only=True, returns: high, low, avg close, total volume, start/end dates.
+        When limit is set, returns only the N most recent data points.
 
     Example:
         yfinance_get_stock_history("AAPL", "1y", "1d", "json")
-        yfinance_get_stock_history("MSFT", "3mo", "1wk", "markdown")
+        yfinance_get_stock_history("AAPL", "1y", "1d", limit=30)  # Last 30 days
+        yfinance_get_stock_history("AAPL", "1y", "1d", summary_only=True)  # Just summary
     """
     try:
         stock = yf.Ticker(ticker)
@@ -163,6 +190,29 @@ def yfinance_get_stock_history(
 
         if hist.empty:
             return format_response({"error": f"No historical data found for {ticker} with period={period}, interval={interval}"}, response_format)
+
+        # If summary_only, return summary statistics
+        if summary_only:
+            result = {
+                "ticker": ticker,
+                "period": period,
+                "interval": interval,
+                "summary": {
+                    "total_data_points": len(hist),
+                    "start_date": hist.index[0].strftime("%Y-%m-%d %H:%M:%S"),
+                    "end_date": hist.index[-1].strftime("%Y-%m-%d %H:%M:%S"),
+                    "highest_price": float(hist["High"].max()),
+                    "lowest_price": float(hist["Low"].min()),
+                    "average_close": float(hist["Close"].mean()),
+                    "total_volume": int(hist["Volume"].sum()),
+                    "latest_close": float(hist["Close"].iloc[-1]),
+                }
+            }
+            return format_response(result, response_format)
+
+        # Apply limit if specified (get most recent N records)
+        if limit is not None and limit > 0:
+            hist = hist.tail(limit)
 
         # Convert to serializable format
         result = {
@@ -172,6 +222,9 @@ def yfinance_get_stock_history(
             "count": len(hist),
             "data": []
         }
+
+        if limit is not None:
+            result["limit_applied"] = limit
 
         for index, row in hist.iterrows():
             result["data"].append({
@@ -197,6 +250,8 @@ def yfinance_get_stock_history(
 def yfinance_get_stock_financials(
     ticker: str,
     statement_type: Literal["income", "balance", "cashflow"] = "income",
+    limit: int = 4,
+    fields: Optional[List[str]] = None,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -205,15 +260,17 @@ def yfinance_get_stock_financials(
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
         statement_type: Type of financial statement - 'income', 'balance', or 'cashflow' (default: 'income')
+        limit: Maximum number of periods to return (default: 4)
+        fields: List of specific line items to include. If None, returns all fields (default: None)
         response_format: Output format - 'json' or 'markdown' (default: 'markdown')
 
     Returns:
         Formatted string containing the requested financial statement organized by date.
-        Typically includes 4 quarters of data.
+        When fields is specified, only those line items are included.
 
     Example:
         yfinance_get_stock_financials("AAPL", "income", "json")
-        yfinance_get_stock_financials("GOOGL", "balance", "markdown")
+        yfinance_get_stock_financials("AAPL", "income", limit=2, fields=["Total Revenue", "Net Income"])
     """
     try:
         stock = yf.Ticker(ticker)
@@ -233,12 +290,41 @@ def yfinance_get_stock_financials(
         if financials.empty:
             return format_response({"error": f"No {statement_name.lower()} data found for {ticker}"}, response_format)
 
+        # Apply limit (get most recent N periods)
+        if limit > 0:
+            financials = financials.iloc[:, :limit]
+
+        # Filter fields if specified
+        if fields is not None and len(fields) > 0:
+            # Find matching fields (case-insensitive partial match)
+            available_fields = financials.index.tolist()
+            matched_fields = []
+            for field in fields:
+                for available_field in available_fields:
+                    if field.lower() in available_field.lower():
+                        matched_fields.append(available_field)
+                        break
+
+            if matched_fields:
+                financials = financials.loc[matched_fields]
+            else:
+                return format_response({
+                    "error": f"None of the specified fields found in {statement_name}",
+                    "available_fields": available_fields[:20]  # Show first 20 available fields
+                }, response_format)
+
         # Convert to serializable format
         result = {
             "ticker": ticker,
             "statement_type": statement_name,
+            "periods_count": len(financials.columns),
+            "fields_count": len(financials.index),
+            "limit_applied": limit,
             "data": {}
         }
+
+        if fields is not None:
+            result["fields_requested"] = fields
 
         for column in financials.columns:
             date_key = column.strftime("%Y-%m-%d")
@@ -261,6 +347,7 @@ def yfinance_get_stock_financials(
 )
 def yfinance_get_stock_recommendations(
     ticker: str,
+    limit: int = 20,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -268,6 +355,7 @@ def yfinance_get_stock_recommendations(
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
+        limit: Maximum number of most recent recommendations to return (default: 20)
         response_format: Output format - 'json' or 'markdown' (default: 'markdown')
 
     Returns:
@@ -279,6 +367,7 @@ def yfinance_get_stock_recommendations(
 
     Example:
         yfinance_get_stock_recommendations("AAPL", "json")
+        yfinance_get_stock_recommendations("AAPL", limit=10)  # Only 10 most recent
     """
     try:
         stock = yf.Ticker(ticker)
@@ -288,8 +377,14 @@ def yfinance_get_stock_recommendations(
         if recommendations is None or recommendations.empty:
             return format_response({"error": f"No recommendations found for {ticker}"}, response_format)
 
+        # Apply limit (get most recent N recommendations)
+        if limit > 0:
+            recommendations = recommendations.tail(limit)
+
         result = {
             "ticker": ticker,
+            "count": len(recommendations),
+            "limit_applied": limit,
             "recommendations": []
         }
 
@@ -528,6 +623,8 @@ def yfinance_search_stocks(
 )
 def yfinance_get_earnings_dates(
     ticker: str,
+    limit: int = 12,
+    future_only: bool = False,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -535,18 +632,21 @@ def yfinance_get_earnings_dates(
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
+        limit: Maximum number of earnings dates to return (default: 12)
+        future_only: If True, return only upcoming earnings dates (default: False)
         response_format: Output format - 'json' or 'markdown' (default: 'markdown')
 
     Returns:
         Formatted string containing earnings information including:
-        - Earnings dates (historical and upcoming)
+        - Earnings dates (historical and/or upcoming)
         - EPS estimates
         - Reported EPS (for historical dates)
         - Surprise percentage (actual vs estimate)
 
     Example:
         yfinance_get_earnings_dates("AAPL", "json")
-        yfinance_get_earnings_dates("MSFT", "markdown")
+        yfinance_get_earnings_dates("AAPL", limit=4)  # Last 4 quarters
+        yfinance_get_earnings_dates("AAPL", future_only=True)  # Only upcoming
     """
     try:
         stock = yf.Ticker(ticker)
@@ -561,9 +661,21 @@ def yfinance_get_earnings_dates(
         if earnings_dates is None or earnings_dates.empty:
             return format_response({"error": f"No earnings dates found for {ticker}"}, response_format)
 
+        # Filter for future only if requested
+        if future_only:
+            now = datetime.now()
+            earnings_dates = earnings_dates[earnings_dates.index > now]
+
+        # Apply limit (get most recent N earnings dates)
+        if limit > 0:
+            earnings_dates = earnings_dates.head(limit)
+
         result = {
             "ticker": ticker,
             "next_earnings_date": datetime.fromtimestamp(next_earnings).strftime("%Y-%m-%d %H:%M:%S") if next_earnings else "N/A",
+            "count": len(earnings_dates),
+            "limit_applied": limit,
+            "future_only": future_only,
             "earnings_history": []
         }
 
