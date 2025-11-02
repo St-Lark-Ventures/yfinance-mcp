@@ -357,6 +357,12 @@ def yfinance_get_stock_news(
             "news": []
         }
 
+        # Debug: check available keys in content field of first news item
+        if news and isinstance(news[0], dict):
+            first_content = news[0].get("content", {})
+            if first_content:
+                result["debug_content_keys"] = list(first_content.keys())
+
         # Limit max_items to prevent overwhelming responses
         max_items = min(max_items, 50)
 
