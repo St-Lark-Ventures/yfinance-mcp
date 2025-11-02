@@ -108,6 +108,14 @@ def yfinance_get_stock_info(
         yfinance_get_stock_info("MSFT", fields=["sector", "industry"])
     """
     try:
+        # Handle fields parameter if passed as JSON string
+        if fields is not None and isinstance(fields, str):
+            try:
+                fields = json.loads(fields)
+            except json.JSONDecodeError:
+                # If it's not valid JSON, treat it as a single field
+                fields = [fields]
+
         stock = yf.Ticker(ticker)
         info = stock.info
 
@@ -273,6 +281,14 @@ def yfinance_get_stock_financials(
         yfinance_get_stock_financials("AAPL", "income", limit=2, fields=["Total Revenue", "Net Income"])
     """
     try:
+        # Handle fields parameter if passed as JSON string
+        if fields is not None and isinstance(fields, str):
+            try:
+                fields = json.loads(fields)
+            except json.JSONDecodeError:
+                # If it's not valid JSON, treat it as a single field
+                fields = [fields]
+
         stock = yf.Ticker(ticker)
 
         if statement_type == "income":
@@ -530,6 +546,14 @@ def yfinance_get_multiple_quotes(
         yfinance_get_multiple_quotes(["AAPL", "MSFT", "GOOGL"], "json")
     """
     try:
+        # Handle tickers parameter if passed as JSON string
+        if isinstance(tickers, str):
+            try:
+                tickers = json.loads(tickers)
+            except json.JSONDecodeError:
+                # If it's not valid JSON, treat it as a single ticker
+                tickers = [tickers]
+
         result = {
             "quotes": {},
             "errors": []
