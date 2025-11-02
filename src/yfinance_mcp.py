@@ -336,10 +336,11 @@ def yfinance_get_stock_news(
     Returns:
         Formatted string containing recent news articles with:
         - Article title
+        - Article description/summary
         - Publisher name
         - Publication date and time
         - Article link
-        - Article type
+        - Content type
         - Thumbnail image URL
 
     Example:
@@ -357,12 +358,6 @@ def yfinance_get_stock_news(
             "news": []
         }
 
-        # Debug: check available keys in content field of first news item
-        if news and isinstance(news[0], dict):
-            first_content = news[0].get("content", {})
-            if first_content:
-                result["debug_content_keys"] = list(first_content.keys())
-
         # Limit max_items to prevent overwhelming responses
         max_items = min(max_items, 50)
 
@@ -373,7 +368,7 @@ def yfinance_get_stock_news(
                 content = item.get("content", {})
 
                 # Handle various possible timestamp fields
-                published_time = content.get("providerPublishTime") or content.get("publishTime") or content.get("published")
+                published_time = content.get("pubDate") or content.get("displayTime")
                 if published_time:
                     try:
                         if isinstance(published_time, int):
@@ -387,10 +382,11 @@ def yfinance_get_stock_news(
 
                 article = {
                     "title": content.get("title", "N/A"),
-                    "publisher": content.get("provider", content.get("publisher", "N/A")),
-                    "link": content.get("clickThroughUrl", content.get("link", "N/A")),
+                    "description": content.get("summary", content.get("description", "N/A")),
+                    "publisher": content.get("provider", {}).get("displayName", "N/A") if isinstance(content.get("provider"), dict) else str(content.get("provider", "N/A")),
+                    "link": content.get("clickThroughUrl", {}).get("url", content.get("clickThroughUrl", "N/A")) if isinstance(content.get("clickThroughUrl"), dict) else str(content.get("clickThroughUrl", "N/A")),
                     "published": published_str,
-                    "type": content.get("type", "N/A"),
+                    "type": content.get("contentType", "N/A"),
                     "thumbnail": content.get("thumbnail", {}).get("resolutions", [{}])[0].get("url", "N/A") if content.get("thumbnail") else "N/A"
                 }
             else:
