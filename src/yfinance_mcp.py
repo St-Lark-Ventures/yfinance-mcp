@@ -786,23 +786,37 @@ def yfinance_get_options_chain(
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
         expiration_date: Optional expiration date in 'YYYY-MM-DD' format (default: nearest)
-        dte: Optional days to expiration (e.g., 30 for monthly options) (default: None)
-        option_type: 'calls', 'puts', or 'both' (default: 'calls')
+        dte: Optional days to expiration - USE THIS for time-based queries:
+             - 7 for "weekly options"
+             - 30 for "monthly options"
+             - 90 for "quarterly options"
+             - 365 for "LEAPS" or "long-term options"
+             (default: None, uses nearest expiration)
+        option_type: 'calls', 'puts', or 'both'
+             - Use 'both' when query mentions "what's available" or exploratory requests
+             - Default: 'calls'
         strikes_near_price: Number of strikes above/below current price, or None for all (default: 10)
         in_the_money: True for ITM, False for OTM, None for both (default: None)
-        min_volume: Minimum volume filter (default: None)
-        min_open_interest: Minimum open interest filter (default: None)
+        min_volume: Minimum volume filter - ONLY use if query mentions "liquid" or "active" (default: None)
+        min_open_interest: Minimum open interest filter - ONLY use if query mentions "liquid" or "active" (default: None)
         strike_min: Minimum strike price (default: None)
         strike_max: Maximum strike price (default: None)
         response_format: 'json' or 'markdown' (default: 'markdown')
 
+    Query interpretation:
+        - "weekly options" → dte=7
+        - "monthly options" → dte=30
+        - "what options are available" → option_type="both"
+        - "liquid/active options" → add min_volume and min_open_interest
+        - Don't add filters unless specifically requested
+
     Returns:
         Options chain data with contract details, prices, volume, open interest, and implied volatility.
 
-    Example:
-        yfinance_get_options_chain("AAPL")
-        yfinance_get_options_chain("TSLA", dte=30)
-        yfinance_get_options_chain("NVDA", option_type="both")
+    Examples:
+        yfinance_get_options_chain("SPY", dte=7)  # Weekly options
+        yfinance_get_options_chain("AAPL", dte=30, option_type="both")  # Monthly calls and puts
+        yfinance_get_options_chain("TSLA", dte=7, min_volume=1000)  # Liquid weekly options
     """
     try:
         stock = yf.Ticker(ticker)
