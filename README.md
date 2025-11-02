@@ -66,30 +66,42 @@ To use this MCP server with Claude Desktop or other MCP clients, add it to your 
 
 ### Claude Desktop Configuration
 
-Edit your Claude Desktop configuration file:
+**Step 1: Edit your Claude Desktop configuration file:**
 
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
-Add the following configuration:
+**Step 2: Add the server configuration:**
 
+**Windows Configuration (Recommended):**
 ```json
 {
   "mcpServers": {
     "yfinance": {
-      "command": "python",
-      "args": [
-        "-m",
-        "src.yfinance_mcp"
-      ],
-      "cwd": "D:\\OneDrive\\Source\\Repos\\yfinance-mcp"
+      "command": "cmd",
+      "args": ["/c", "cd /d C:\\yfinance-mcp && C:\\yfinance-mcp\\venv\\Scripts\\python.exe -m src.yfinance_mcp"]
     }
   }
 }
 ```
 
-Make sure to update the `cwd` path to match your actual installation directory.
+**macOS/Linux Configuration:**
+```json
+{
+  "mcpServers": {
+    "yfinance": {
+      "command": "/bin/bash",
+      "args": ["-c", "cd /path/to/yfinance-mcp && ./venv/bin/python -m src.yfinance_mcp"]
+    }
+  }
+}
+```
+
+**Important Notes:**
+- Replace `C:\\yfinance-mcp` (Windows) or `/path/to/yfinance-mcp` (macOS/Linux) with your actual installation path
+- The configuration uses the virtual environment's Python interpreter to ensure all dependencies are available
+- Make sure you've created the venv and installed requirements before using this configuration
 
 ## Usage
 
