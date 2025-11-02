@@ -146,7 +146,11 @@ Once configured with Claude Desktop, you can ask questions like:
 - "When is Apple's next earnings call?"
 - "Show me the earnings history for MSFT"
 - "Get the options chain for TSLA"
-- "Show me AAPL options expiring on 2024-12-20"
+- "Show me AAPL call options expiring in about 30 days" *(uses dte parameter)*
+- "What weekly options are available for SPY?" *(uses dte=7)*
+- "Show me near-the-money calls and puts for NVDA monthly options" *(uses dte=30, option_type="both", strikes_near_price=5)*
+- "Get highly liquid SPY options expiring next week" *(uses dte=7, min_volume, min_open_interest)*
+- "Show me protective put options for AAPL expiring in 30 days" *(uses dte=30, option_type="puts", in_the_money=True)*
 - "What are the next 3 upcoming earnings dates for GOOGL?" *(uses future_only and limit parameters)*
 - "Show me just the last 4 earnings reports for NVDA" *(uses limit parameter)*
 - "When are the next earnings calls for TSLA?" *(uses future_only parameter)*
@@ -352,28 +356,72 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 - Filters applied
 - For each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
 
-**Example:**
-```python
-# Get calls near current price for nearest expiration (default behavior)
-yfinance_get_options_chain("AAPL")
+**Examples:**
 
-# Get calls for options expiring in ~30 days
+**Basic Usage:**
+```python
+# Quick check: calls near current price for nearest expiration
+yfinance_get_options_chain("TSLA")
+
+# Get nearest expiration, but show more strikes (20 above and below current price)
+yfinance_get_options_chain("TSLA", strikes_near_price=20)
+
+# See all available strikes for nearest expiration
+yfinance_get_options_chain("AAPL", strikes_near_price=None)
+```
+
+**Using DTE (Days to Expiration):**
+```python
+# Weekly options (~7 days out)
+yfinance_get_options_chain("SPY", dte=7)
+
+# Monthly options (~30 days out)
 yfinance_get_options_chain("AAPL", dte=30)
 
-# Get both calls and puts very near the money (5 strikes each side)
-yfinance_get_options_chain("AAPL", option_type="both", strikes_near_price=5)
+# Quarterly options (~90 days out)
+yfinance_get_options_chain("MSFT", dte=90)
 
-# Get all ITM calls with volume >= 100
-yfinance_get_options_chain("AAPL", in_the_money=True, min_volume=100, strikes_near_price=None)
+# LEAPS (~365 days out, longer-term options)
+yfinance_get_options_chain("GOOGL", dte=365)
+```
 
-# Get 20 nearest OTM calls (above current price)
-yfinance_get_options_chain("AAPL", strikes_near_price=20, in_the_money=False)
+**Common Trading Scenarios:**
+```python
+# Near-the-money calls and puts (5 strikes each side) for 30-day expiration
+yfinance_get_options_chain("NVDA", dte=30, option_type="both", strikes_near_price=5)
 
-# Get puts in specific strike range for specific date
-yfinance_get_options_chain("AAPL", expiration_date="2024-12-20", option_type="puts", strike_min=150, strike_max=200)
+# Out-of-the-money calls only (above current price) for weekly expiration
+yfinance_get_options_chain("TSLA", dte=7, in_the_money=False, strikes_near_price=10)
 
-# Get liquid calls (high volume and open interest)
-yfinance_get_options_chain("AAPL", min_volume=500, min_open_interest=1000)
+# In-the-money puts (protective puts) for monthly expiration
+yfinance_get_options_chain("AAPL", dte=30, option_type="puts", in_the_money=True, strikes_near_price=10)
+
+# Near-the-money calls with tight spread (very liquid only)
+yfinance_get_options_chain("SPY", dte=7, strikes_near_price=5, min_volume=1000, min_open_interest=5000)
+```
+
+**Filtering by Liquidity:**
+```python
+# Only show highly liquid calls (high volume and open interest)
+yfinance_get_options_chain("SPY", min_volume=500, min_open_interest=1000)
+
+# Active calls for weekly expiration
+yfinance_get_options_chain("QQQ", dte=7, min_volume=100)
+
+# Liquid monthly puts
+yfinance_get_options_chain("AAPL", dte=30, option_type="puts", min_volume=50, min_open_interest=500)
+```
+
+**Specific Date and Strike Range:**
+```python
+# Specific expiration date with strike range
+yfinance_get_options_chain("AAPL", expiration_date="2024-12-20", strike_min=150, strike_max=200)
+
+# Puts in specific range for earnings play
+yfinance_get_options_chain("TSLA", expiration_date="2024-01-19", option_type="puts", strike_min=200, strike_max=250)
+
+# Both calls and puts for specific date, near the money
+yfinance_get_options_chain("MSFT", expiration_date="2024-12-20", option_type="both", strikes_near_price=8)
 ```
 
 **Filtering Tips:**
