@@ -360,13 +360,38 @@ def yfinance_get_stock_news(
         max_items = min(max_items, 50)
 
         for item in news[:max_items]:
-            article = {
-                "title": item.get("title", "N/A"),
-                "publisher": item.get("publisher", "N/A"),
-                "link": item.get("link", "N/A"),
-                "published": datetime.fromtimestamp(item.get("providerPublishTime", 0)).strftime("%Y-%m-%d %H:%M:%S") if item.get("providerPublishTime") else "N/A",
-                "type": item.get("type", "N/A"),
-            }
+            # If item is a dict, extract values normally
+            if isinstance(item, dict):
+                # Handle various possible timestamp fields
+                published_time = item.get("providerPublishTime") or item.get("publishTime") or item.get("published")
+                if published_time:
+                    try:
+                        if isinstance(published_time, int):
+                            published_str = datetime.fromtimestamp(published_time).strftime("%Y-%m-%d %H:%M:%S")
+                        else:
+                            published_str = str(published_time)
+                    except:
+                        published_str = "N/A"
+                else:
+                    published_str = "N/A"
+
+                article = {
+                    "title": item.get("title", "N/A"),
+                    "publisher": item.get("publisher", "N/A"),
+                    "link": item.get("link", "N/A"),
+                    "published": published_str,
+                    "type": item.get("type", "N/A"),
+                }
+            else:
+                # If item is not a dict, try to convert to string representation
+                article = {
+                    "title": str(item) if item else "N/A",
+                    "publisher": "N/A",
+                    "link": "N/A",
+                    "published": "N/A",
+                    "type": "N/A",
+                }
+
             result["news"].append(article)
 
         return format_response(result, response_format)
