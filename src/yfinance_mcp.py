@@ -10,6 +10,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 from fastmcp import FastMCP
 import json
+import pandas as pd
 
 # Constants
 CHARACTER_LIMIT = 25000
@@ -738,7 +739,9 @@ def yfinance_get_earnings_dates(
 def yfinance_get_options_chain(
     ticker: str,
     expiration_date: Optional[str] = None,
-    option_type: Literal["calls", "puts", "both"] = "both",
+    dte: Optional[int] = None,
+    option_type: Literal["calls", "puts", "both"] = "calls",
+    strikes_near_price: Optional[int] = 10,
     in_the_money: Optional[bool] = None,
     min_volume: Optional[int] = None,
     min_open_interest: Optional[int] = None,
@@ -752,7 +755,9 @@ def yfinance_get_options_chain(
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
         expiration_date: Specific expiration date in 'YYYY-MM-DD' format. If None, uses nearest expiration (default: None)
-        option_type: Type of options to return - 'calls', 'puts', or 'both' (default: 'both')
+        dte: Days to expiration - finds expiration closest to N days out. Overrides expiration_date if both specified (default: None)
+        option_type: Type of options to return - 'calls', 'puts', or 'both' (default: 'calls')
+        strikes_near_price: Number of strikes to show above and below current price. None = all strikes (default: 10)
         in_the_money: Filter by ITM status - True for ITM only, False for OTM only, None for all (default: None)
         min_volume: Minimum trading volume filter (default: None)
         min_open_interest: Minimum open interest filter (default: None)
@@ -763,21 +768,34 @@ def yfinance_get_options_chain(
     Returns:
         Formatted string containing options data including:
         - Available expiration dates (if no date specified)
+        - Current stock price (when strikes_near_price is used)
         - Selected expiration date and filters applied
         - For each option: contract symbol, strike, last price, bid, ask, change, percent change,
           volume, open interest, implied volatility, in the money status, last trade date,
           contract size, currency
 
     Example:
-        yfinance_get_options_chain("AAPL")  # All options, nearest expiration
-        yfinance_get_options_chain("AAPL", option_type="calls")  # Calls only
-        yfinance_get_options_chain("AAPL", in_the_money=True, min_volume=100)  # ITM with volume >= 100
-        yfinance_get_options_chain("AAPL", "2024-12-20", "puts", strike_min=150, strike_max=200)  # Puts in strike range
+        yfinance_get_options_chain("AAPL")  # Calls near current price, nearest expiration
+        yfinance_get_options_chain("AAPL", dte=30)  # Calls ~30 days out
+        yfinance_get_options_chain("AAPL", option_type="both", strikes_near_price=5)  # Calls & puts very near the money
+        yfinance_get_options_chain("AAPL", in_the_money=True, min_volume=100)  # ITM calls with volume >= 100
+        yfinance_get_options_chain("AAPL", strikes_near_price=None)  # All available call strikes
 
-    Note: To see available expiration dates, call this tool without specifying an expiration_date.
+    Note: strikes_near_price and in_the_money filters work together. For example, strikes_near_price=10 with
+    in_the_money=False shows the 10 nearest OTM strikes above current price (for calls).
     """
     try:
         stock = yf.Ticker(ticker)
+
+        # Get current stock price for strikes_near_price filtering
+        info = stock.info
+        current_price = info.get("currentPrice", info.get("regularMarketPrice"))
+        if current_price is None:
+            # Try fast_info as fallback
+            try:
+                current_price = stock.fast_info.last_price
+            except:
+                current_price = None
 
         # Get available expiration dates
         available_expirations = stock.options
@@ -785,8 +803,26 @@ def yfinance_get_options_chain(
         if not available_expirations:
             return format_response({"error": f"No options data available for {ticker}"}, response_format)
 
+        # Handle DTE (days to expiration) if specified
+        if dte is not None:
+            from datetime import datetime, timedelta
+            target_date = datetime.now() + timedelta(days=dte)
+
+            # Find the expiration closest to the target DTE
+            closest_exp = None
+            min_diff = float('inf')
+
+            for exp_str in available_expirations:
+                exp_date = datetime.strptime(exp_str, "%Y-%m-%d")
+                diff = abs((exp_date - target_date).days)
+                if diff < min_diff:
+                    min_diff = diff
+                    closest_exp = exp_str
+
+            expiration_date = closest_exp
+            show_available = True
         # If no expiration specified, return available dates and use nearest
-        if expiration_date is None:
+        elif expiration_date is None:
             expiration_date = available_expirations[0]
             show_available = True
         else:
@@ -806,6 +842,7 @@ def yfinance_get_options_chain(
             "expiration_date": expiration_date,
             "filters_applied": {
                 "option_type": option_type,
+                "strikes_near_price": strikes_near_price,
                 "in_the_money": in_the_money,
                 "min_volume": min_volume,
                 "min_open_interest": min_open_interest,
@@ -813,14 +850,34 @@ def yfinance_get_options_chain(
             }
         }
 
+        if current_price is not None:
+            result["current_price"] = float(current_price)
+
         if show_available:
             result["available_expirations"] = list(available_expirations)
 
         def process_options(df, option_label):
             """Process and filter options dataframe"""
+            # First, apply strikes_near_price filter if applicable
+            if strikes_near_price is not None and current_price is not None and not df.empty:
+                # Calculate distance from current price for each strike
+                df = df.copy()
+                df['distance_from_price'] = abs(df['strike'] - current_price)
+
+                # Separate into ITM and OTM
+                if option_label == "calls":
+                    itm_df = df[df['strike'] <= current_price].nsmallest(strikes_near_price, 'distance_from_price')
+                    otm_df = df[df['strike'] > current_price].nsmallest(strikes_near_price, 'distance_from_price')
+                else:  # puts
+                    itm_df = df[df['strike'] >= current_price].nsmallest(strikes_near_price, 'distance_from_price')
+                    otm_df = df[df['strike'] < current_price].nsmallest(strikes_near_price, 'distance_from_price')
+
+                # Combine and sort by strike
+                df = pd.concat([itm_df, otm_df]).sort_values('strike')
+
             options_data = []
             for _, row in df.iterrows():
-                # Apply filters
+                # Apply other filters
                 if in_the_money is not None and row.get("inTheMoney", False) != in_the_money:
                     continue
                 if min_volume is not None and (row["volume"] != row["volume"] or row["volume"] < min_volume):

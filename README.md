@@ -336,7 +336,9 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 **Parameters:**
 - `ticker` (string): Stock ticker symbol
 - `expiration_date` (string, optional): Expiration date in 'YYYY-MM-DD' format. If None, uses nearest expiration (default: None)
-- `option_type` (string, optional): Type of options - 'calls', 'puts', or 'both' (default: 'both')
+- `dte` (int, optional): Days to expiration - finds expiration closest to N days out. Overrides expiration_date if both specified (default: None)
+- `option_type` (string, optional): Type of options - 'calls', 'puts', or 'both' (default: 'calls')
+- `strikes_near_price` (int, optional): Number of strikes to show above and below current price. None = all strikes (default: 10)
 - `in_the_money` (boolean, optional): Filter by ITM status - True for ITM only, False for OTM only, None for all (default: None)
 - `min_volume` (int, optional): Minimum trading volume filter (default: None)
 - `min_open_interest` (int, optional): Minimum open interest filter (default: None)
@@ -345,33 +347,46 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
+- Current stock price (when strikes_near_price is used)
 - Available expiration dates (when no date specified)
 - Filters applied
 - For each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
 
 **Example:**
 ```python
-# Get all options for nearest expiration
+# Get calls near current price for nearest expiration (default behavior)
 yfinance_get_options_chain("AAPL")
 
-# Get only calls
-yfinance_get_options_chain("AAPL", option_type="calls")
+# Get calls for options expiring in ~30 days
+yfinance_get_options_chain("AAPL", dte=30)
 
-# Get ITM options with volume >= 100
-yfinance_get_options_chain("AAPL", in_the_money=True, min_volume=100)
+# Get both calls and puts very near the money (5 strikes each side)
+yfinance_get_options_chain("AAPL", option_type="both", strikes_near_price=5)
 
-# Get puts in specific strike range
-yfinance_get_options_chain("AAPL", "2024-12-20", "puts", strike_min=150, strike_max=200)
+# Get all ITM calls with volume >= 100
+yfinance_get_options_chain("AAPL", in_the_money=True, min_volume=100, strikes_near_price=None)
+
+# Get 20 nearest OTM calls (above current price)
+yfinance_get_options_chain("AAPL", strikes_near_price=20, in_the_money=False)
+
+# Get puts in specific strike range for specific date
+yfinance_get_options_chain("AAPL", expiration_date="2024-12-20", option_type="puts", strike_min=150, strike_max=200)
 
 # Get liquid calls (high volume and open interest)
-yfinance_get_options_chain("AAPL", option_type="calls", min_volume=500, min_open_interest=1000)
+yfinance_get_options_chain("AAPL", min_volume=500, min_open_interest=1000)
 ```
 
 **Filtering Tips:**
-- Use `option_type` to reduce response size when only calls or puts are needed
-- Use `in_the_money` to focus on ITM or OTM options
+- **Default changed to 'calls'** to reduce response size and match common usage
+- Use `strikes_near_price=10` (default) to get ~20 contracts centered around current price
+- Use `strikes_near_price=None` to see all available strikes (may hit character limit for large chains)
+- Use `dte` for more intuitive expiration selection (e.g., dte=30 for monthly options)
+- `strikes_near_price` and `in_the_money` work together:
+  - `strikes_near_price=10, in_the_money=False` → 10 nearest OTM strikes
+  - `strikes_near_price=10, in_the_money=True` → 10 nearest ITM strikes
+  - `strikes_near_price=5` → Very near-the-money options (5 ITM + 5 OTM)
 - Use `min_volume` and `min_open_interest` to filter for liquid options
-- Use `strike_min` and `strike_max` to focus on specific price ranges
+- Use `strike_min` and `strike_max` for custom price ranges (overrides strikes_near_price)
 
 ---
 
