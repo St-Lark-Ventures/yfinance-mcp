@@ -694,7 +694,12 @@ def yfinance_get_earnings_dates(
 
         # Filter for future only if requested
         if future_only:
-            now = datetime.now()
+            # Make now timezone-aware to match earnings_dates index timezone
+            import pandas as pd
+            if earnings_dates.index.tz is not None:
+                now = pd.Timestamp.now(tz=earnings_dates.index.tz)
+            else:
+                now = pd.Timestamp.now()
             earnings_dates = earnings_dates[earnings_dates.index > now]
 
         # Apply limit (get most recent N earnings dates)
