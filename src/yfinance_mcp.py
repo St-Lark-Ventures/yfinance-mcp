@@ -413,6 +413,12 @@ def yfinance_get_stock_recommendations(
             "recommendations": []
         }
 
+        # Debug: Check what columns are actually available
+        available_columns = []
+        if not recommendations.empty:
+            available_columns = list(recommendations.columns)
+            result["available_columns"] = available_columns  # Temporary debug info
+
         for index, row in recommendations.iterrows():
             # Handle index that might be datetime or other type
             if hasattr(index, 'strftime'):
@@ -420,12 +426,18 @@ def yfinance_get_stock_recommendations(
             else:
                 date_str = str(index)
 
+            # Try multiple possible column name variations
+            firm = row.get("Firm", row.get("firm", "N/A"))
+            to_grade = row.get("To Grade", row.get("toGrade", row.get("ToGrade", "N/A")))
+            from_grade = row.get("From Grade", row.get("fromGrade", row.get("FromGrade", "N/A")))
+            action = row.get("Action", row.get("action", "N/A"))
+
             rec = {
                 "date": date_str,
-                "firm": str(row.get("firm", row.get("Firm", "N/A"))),
-                "to_grade": str(row.get("toGrade", row.get("To Grade", "N/A"))),
-                "from_grade": str(row.get("fromGrade", row.get("From Grade", "N/A"))),
-                "action": str(row.get("action", row.get("Action", "N/A")))
+                "firm": str(firm) if firm != "N/A" else "N/A",
+                "to_grade": str(to_grade) if to_grade != "N/A" and pd.notna(to_grade) else "N/A",
+                "from_grade": str(from_grade) if from_grade != "N/A" and pd.notna(from_grade) else "N/A",
+                "action": str(action) if action != "N/A" else "N/A"
             }
             result["recommendations"].append(rec)
 
