@@ -340,6 +340,7 @@ def yfinance_get_stock_news(
         - Publication date and time
         - Article link
         - Article type
+        - Thumbnail image URL
 
     Example:
         yfinance_get_stock_news("TSLA", 5, "markdown")
@@ -356,18 +357,17 @@ def yfinance_get_stock_news(
             "news": []
         }
 
-        # Debug: check available keys in first news item
-        if news and isinstance(news[0], dict):
-            result["debug_available_keys"] = list(news[0].keys())
-
         # Limit max_items to prevent overwhelming responses
         max_items = min(max_items, 50)
 
         for item in news[:max_items]:
-            # If item is a dict, extract values normally
+            # If item is a dict, extract values from the nested 'content' field
             if isinstance(item, dict):
+                # News data is nested in the 'content' field
+                content = item.get("content", {})
+
                 # Handle various possible timestamp fields
-                published_time = item.get("providerPublishTime") or item.get("publishTime") or item.get("published")
+                published_time = content.get("providerPublishTime") or content.get("publishTime") or content.get("published")
                 if published_time:
                     try:
                         if isinstance(published_time, int):
@@ -380,11 +380,12 @@ def yfinance_get_stock_news(
                     published_str = "N/A"
 
                 article = {
-                    "title": item.get("title", "N/A"),
-                    "publisher": item.get("publisher", "N/A"),
-                    "link": item.get("link", "N/A"),
+                    "title": content.get("title", "N/A"),
+                    "publisher": content.get("provider", content.get("publisher", "N/A")),
+                    "link": content.get("clickThroughUrl", content.get("link", "N/A")),
                     "published": published_str,
-                    "type": item.get("type", "N/A"),
+                    "type": content.get("type", "N/A"),
+                    "thumbnail": content.get("thumbnail", {}).get("resolutions", [{}])[0].get("url", "N/A") if content.get("thumbnail") else "N/A"
                 }
             else:
                 # If item is not a dict, try to convert to string representation
