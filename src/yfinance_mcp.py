@@ -413,12 +413,6 @@ def yfinance_get_stock_recommendations(
             "recommendations": []
         }
 
-        # Debug: Check what columns are actually available
-        available_columns = []
-        if not recommendations.empty:
-            available_columns = list(recommendations.columns)
-            result["available_columns"] = available_columns  # Temporary debug info
-
         for index, row in recommendations.iterrows():
             # Handle index that might be datetime or other type
             if hasattr(index, 'strftime'):
@@ -428,9 +422,14 @@ def yfinance_get_stock_recommendations(
 
             # Try multiple possible column name variations
             firm = row.get("Firm", row.get("firm", "N/A"))
-            to_grade = row.get("To Grade", row.get("toGrade", row.get("ToGrade", "N/A")))
-            from_grade = row.get("From Grade", row.get("fromGrade", row.get("FromGrade", "N/A")))
+            to_grade = row.get("ToGrade", row.get("To Grade", row.get("toGrade", "N/A")))
+            from_grade = row.get("FromGrade", row.get("From Grade", row.get("fromGrade", "N/A")))
             action = row.get("Action", row.get("action", "N/A"))
+
+            # Optional price target information
+            current_target = row.get("currentPriceTarget")
+            prior_target = row.get("priorPriceTarget")
+            target_action = row.get("priceTargetAction")
 
             rec = {
                 "date": date_str,
@@ -439,6 +438,15 @@ def yfinance_get_stock_recommendations(
                 "from_grade": str(from_grade) if from_grade != "N/A" and pd.notna(from_grade) else "N/A",
                 "action": str(action) if action != "N/A" else "N/A"
             }
+
+            # Add price target info if available
+            if pd.notna(current_target):
+                rec["price_target"] = float(current_target)
+            if pd.notna(prior_target):
+                rec["prior_price_target"] = float(prior_target)
+            if pd.notna(target_action) and target_action != "N/A":
+                rec["price_target_action"] = str(target_action)
+
             result["recommendations"].append(rec)
 
         return format_response(result, response_format)
