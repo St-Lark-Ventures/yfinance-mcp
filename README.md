@@ -128,9 +128,9 @@ Once configured with Claude Desktop, you can ask questions like:
 **Historical Data:**
 - "Show me Tesla's price history over the past 6 months"
 - "Get AAPL historical data for the past year with weekly intervals"
+- "Show me just the last week of trading data for GOOGL"
 - "What were the last 30 days of price data for MSFT?" *(uses limit parameter)*
 - "Give me a summary of AAPL's price performance over the last year" *(uses summary_only parameter)*
-- "Show me just the last week of trading data for GOOGL" *(uses limit parameter)*
 - "What's the high, low, and average price for TSLA this year?" *(uses summary_only parameter)*
 
 **Financial Statements:**
