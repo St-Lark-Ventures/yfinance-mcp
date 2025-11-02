@@ -137,9 +137,10 @@ Once configured with Claude Desktop, you can ask questions like:
 - "Get Microsoft's income statement"
 - "Show me Apple's balance sheet in JSON format"
 - "What's Google's cash flow statement?"
+- "What's Tesla's total revenue for the most recent quarter?" *(quarterly by default, uses fields and limit parameters)*
 - "Show me just the revenue and net income for AAPL over the last 2 quarters" *(uses fields and limit parameters)*
-- "What's Tesla's total revenue for the most recent quarter?" *(uses fields and limit parameters)*
 - "Get the key profitability metrics from MSFT's latest income statement" *(uses fields and limit parameters)*
+- "Show me AAPL's annual revenue for the past 3 years" *(uses period='annual' parameter)*
 
 **Earnings & Options:**
 - "When is Apple's next earnings call?"
@@ -211,17 +212,20 @@ Get financial statements for a stock.
 **Parameters:**
 - `ticker` (string): Stock ticker symbol
 - `statement_type` (string, optional): 'income', 'balance', or 'cashflow' (default: 'income')
+- `period` (string, optional): 'quarterly' for quarterly reports, 'annual' for yearly reports (default: 'quarterly')
 - `limit` (int, optional): Maximum number of most recent periods to return (default: 4)
 - `fields` (list of strings, optional): Specific financial fields to return. Uses case-insensitive partial matching. Example fields: 'revenue', 'net income', 'total assets', 'cash', etc. (default: None, returns all fields)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
-- Financial statement data organized by date (all fields or filtered subset)
+- Financial statement data organized by date (quarterly or annual, all fields or filtered subset)
+- **Note:** Returns quarterly data by default. Most recent 4 quarters unless limit is changed.
 
 **Example:**
 ```python
 yfinance_get_stock_financials("AAPL", "income", "json")
-yfinance_get_stock_financials("AAPL", "income", limit=2)  # Last 2 quarters only
+yfinance_get_stock_financials("AAPL", "income", period="quarterly", limit=2)  # Last 2 quarters
+yfinance_get_stock_financials("AAPL", "income", period="annual", limit=3)  # Last 3 years
 yfinance_get_stock_financials("AAPL", "income", fields=["revenue", "net income"])
 ```
 

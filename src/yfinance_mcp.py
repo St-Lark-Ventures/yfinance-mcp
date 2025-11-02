@@ -258,6 +258,7 @@ def yfinance_get_stock_history(
 def yfinance_get_stock_financials(
     ticker: str,
     statement_type: Literal["income", "balance", "cashflow"] = "income",
+    period: Literal["quarterly", "annual"] = "quarterly",
     limit: int = 4,
     fields: Optional[Union[List[str], str]] = None,
     response_format: Literal["json", "markdown"] = "markdown"
@@ -268,16 +269,20 @@ def yfinance_get_stock_financials(
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
         statement_type: Type of financial statement - 'income', 'balance', or 'cashflow' (default: 'income')
+        period: Period type - 'quarterly' for quarterly reports, 'annual' for yearly reports (default: 'quarterly')
         limit: Maximum number of periods to return (default: 4)
         fields: List of specific line items to include. If None, returns all fields (default: None)
         response_format: Output format - 'json' or 'markdown' (default: 'markdown')
 
     Returns:
         Formatted string containing the requested financial statement organized by date.
+        Returns quarterly data by default (most recent 4 quarters).
+        Use period='annual' to get annual/yearly financial statements instead.
         When fields is specified, only those line items are included.
 
     Example:
         yfinance_get_stock_financials("AAPL", "income", "json")
+        yfinance_get_stock_financials("AAPL", "income", period="annual", limit=3)  # Last 3 years
         yfinance_get_stock_financials("AAPL", "income", limit=2, fields=["Total Revenue", "Net Income"])
     """
     try:
@@ -291,14 +296,15 @@ def yfinance_get_stock_financials(
 
         stock = yf.Ticker(ticker)
 
+        # Select the appropriate financial statement based on type and period
         if statement_type == "income":
-            financials = stock.financials
+            financials = stock.quarterly_financials if period == "quarterly" else stock.yearly_financials
             statement_name = "Income Statement"
         elif statement_type == "balance":
-            financials = stock.balance_sheet
+            financials = stock.quarterly_balance_sheet if period == "quarterly" else stock.balance_sheet
             statement_name = "Balance Sheet"
         elif statement_type == "cashflow":
-            financials = stock.cashflow
+            financials = stock.quarterly_cashflow if period == "quarterly" else stock.cashflow
             statement_name = "Cash Flow Statement"
         else:
             return format_response({"error": f"Invalid statement_type: {statement_type}. Use 'income', 'balance', or 'cashflow'"}, response_format)
@@ -333,6 +339,7 @@ def yfinance_get_stock_financials(
         result = {
             "ticker": ticker,
             "statement_type": statement_name,
+            "period_type": period,
             "periods_count": len(financials.columns),
             "fields_count": len(financials.index),
             "limit_applied": limit,
