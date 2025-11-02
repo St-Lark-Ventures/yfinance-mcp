@@ -146,11 +146,11 @@ Once configured with Claude Desktop, you can ask questions like:
 - "When is Apple's next earnings call?"
 - "Show me the earnings history for MSFT"
 - "Get the options chain for TSLA"
-- "Show me AAPL call options expiring in about 30 days" *(uses dte parameter)*
-- "What weekly options are available for SPY?" *(uses dte=7)*
+- "Show me the SPY options chain for weekly expiration" *(uses dte=7, shows actual option contracts)*
+- "Get AAPL call options expiring in about 30 days" *(uses dte=30, option_type="calls")*
 - "Show me near-the-money calls and puts for NVDA monthly options" *(uses dte=30, option_type="both", strikes_near_price=5)*
-- "Get highly liquid SPY options expiring next week" *(uses dte=7, min_volume, min_open_interest)*
-- "Show me protective put options for AAPL expiring in 30 days" *(uses dte=30, option_type="puts", in_the_money=True)*
+- "Get highly liquid call options for SPY expiring next week" *(uses dte=7, min_volume, min_open_interest)*
+- "Show me protective put options for AAPL with monthly expiration" *(uses dte=30, option_type="puts", in_the_money=True)*
 - "What are the next 3 upcoming earnings dates for GOOGL?" *(uses future_only and limit parameters)*
 - "Show me just the last 4 earnings reports for NVDA" *(uses limit parameter)*
 - "When are the next earnings calls for TSLA?" *(uses future_only parameter)*
@@ -435,6 +435,13 @@ yfinance_get_options_chain("MSFT", expiration_date="2024-12-20", option_type="bo
   - `strikes_near_price=5` → Very near-the-money options (5 ITM + 5 OTM)
 - Use `min_volume` and `min_open_interest` to filter for liquid options
 - Use `strike_min` and `strike_max` for custom price ranges (overrides strikes_near_price)
+
+**Query Interpretation Guidelines:**
+- **"Show me [ticker] options chain"** → Use default parameters (calls, 10 strikes, nearest expiration)
+- **"Show me weekly/monthly options"** → Add `dte=7` or `dte=30` to specify expiration timeframe
+- **"What options are available?"** → Exploratory query; use `option_type="both"` to show calls and puts
+- **"Get highly liquid options"** → Add `min_volume` and `min_open_interest` filters
+- **Don't add unsolicited filters** unless the query specifically mentions liquidity, volume, or specific strikes
 
 ---
 
