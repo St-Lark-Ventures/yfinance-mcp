@@ -282,7 +282,8 @@ def yfinance_get_stock_recommendations(
     """
     try:
         stock = yf.Ticker(ticker)
-        recommendations = stock.recommendations
+        # Use upgrades_downgrades which has firm, toGrade, fromGrade, action columns
+        recommendations = stock.upgrades_downgrades
 
         if recommendations is None or recommendations.empty:
             return format_response({"error": f"No recommendations found for {ticker}"}, response_format)
@@ -301,10 +302,10 @@ def yfinance_get_stock_recommendations(
 
             rec = {
                 "date": date_str,
-                "firm": str(row.get("Firm", "N/A")),
-                "to_grade": str(row.get("To Grade", "N/A")),
-                "from_grade": str(row.get("From Grade", "N/A")),
-                "action": str(row.get("Action", "N/A"))
+                "firm": str(row.get("firm", row.get("Firm", "N/A"))),
+                "to_grade": str(row.get("toGrade", row.get("To Grade", "N/A"))),
+                "from_grade": str(row.get("fromGrade", row.get("From Grade", "N/A"))),
+                "action": str(row.get("action", row.get("Action", "N/A")))
             }
             result["recommendations"].append(rec)
 
