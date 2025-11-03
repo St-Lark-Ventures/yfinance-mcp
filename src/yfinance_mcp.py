@@ -820,8 +820,9 @@ def yfinance_get_options_chain(
                 - None (default) = return full contract data
                 Use for queries like "what expiration dates does [ticker] have?"
         summary: If True, return aggregate statistics instead of individual contracts.
-                 Includes: total volume, open interest, strike ranges, avg IV, most active strikes,
-                 put/call ratios. Use for market analysis and activity overview. (default: False)
+                 Returns: total volume, open interest, strike ranges, avg IV, most active strikes,
+                 put/call ratios. **Use this for queries asking for "summary", "activity", "overview",
+                 or "sentiment" - NOT for queries asking for specific contracts/strikes.** (default: False)
         response_format: 'json' or 'markdown' (default: 'markdown')
 
     Query interpretation:
@@ -831,8 +832,8 @@ def yfinance_get_options_chain(
         - "3 expirations around..." → limit=3 with dte or target_date
         - "what options are available" → option_type="both"
         - "what expiration dates" or "what dates are available" → fields=["expiration_dates"]
-        - "options activity" or "market sentiment" → summary=True
-        - "liquid/active options" → add min_volume and min_open_interest
+        - "activity summary", "options activity", "market sentiment", or any query with "summary" → summary=True
+        - "liquid/active options" (without "summary") → add min_volume and min_open_interest (NOT summary=True)
         - Don't add filters unless specifically requested
 
     Returns:
