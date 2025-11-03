@@ -145,6 +145,8 @@ Once configured with Claude Desktop, you can ask questions like:
 **Earnings & Options:**
 - "When is Apple's next earnings call?"
 - "Show me the earnings history for MSFT"
+- "What expiration dates does SPY have for options?" *(uses dates_only=True)*
+- "What options expiration dates are available for TSLA?" *(uses dates_only=True)*
 - "Get the options chain for TSLA"
 - "Show me the SPY options chain for weekly expiration" *(uses dte=7, shows actual option contracts)*
 - "Get AAPL call options expiring in about 30 days" *(uses dte=30, option_type="calls")*
@@ -348,15 +350,23 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 - `min_open_interest` (int, optional): Minimum open interest filter (default: None)
 - `strike_min` (float, optional): Minimum strike price filter (default: None)
 - `strike_max` (float, optional): Maximum strike price filter (default: None)
+- `dates_only` (boolean, optional): If True, return only available expiration dates without fetching contract data. Fast and efficient for exploratory queries (default: False)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
-- Current stock price (when strikes_near_price is used)
-- Available expiration dates (when no date specified)
-- Filters applied
-- For each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
+- If `dates_only=True`: List of available expiration dates only
+- Otherwise: Current stock price (when strikes_near_price is used), available expiration dates, filters applied, and for each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
 
 **Examples:**
+
+**Getting Expiration Dates Only:**
+```python
+# Fast query: just get available expiration dates without contract data
+yfinance_get_options_chain("SPY", dates_only=True)
+
+# Check what expiration dates TSLA has available
+yfinance_get_options_chain("TSLA", dates_only=True)
+```
 
 **Basic Usage:**
 ```python

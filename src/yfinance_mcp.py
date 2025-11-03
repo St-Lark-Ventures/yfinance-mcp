@@ -778,6 +778,7 @@ def yfinance_get_options_chain(
     min_open_interest: Optional[int] = None,
     strike_min: Optional[float] = None,
     strike_max: Optional[float] = None,
+    dates_only: bool = False,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -801,19 +802,24 @@ def yfinance_get_options_chain(
         min_open_interest: Minimum open interest filter - ONLY use if query mentions "liquid" or "active" (default: None)
         strike_min: Minimum strike price (default: None)
         strike_max: Maximum strike price (default: None)
+        dates_only: If True, return only the list of available expiration dates without contract data.
+                    Use for queries like "what expiration dates does [ticker] have?" (default: False)
         response_format: 'json' or 'markdown' (default: 'markdown')
 
     Query interpretation:
         - "weekly options" → dte=7
         - "monthly options" → dte=30
         - "what options are available" → option_type="both"
+        - "what expiration dates" or "what dates are available" → dates_only=True
         - "liquid/active options" → add min_volume and min_open_interest
         - Don't add filters unless specifically requested
 
     Returns:
         Options chain data with contract details, prices, volume, open interest, and implied volatility.
+        If dates_only=True, returns only the list of available expiration dates.
 
     Examples:
+        yfinance_get_options_chain("SPY", dates_only=True)  # Just get available expiration dates
         yfinance_get_options_chain("SPY", dte=7)  # Weekly options
         yfinance_get_options_chain("AAPL", dte=30, option_type="both")  # Monthly calls and puts
         yfinance_get_options_chain("TSLA", dte=7, min_volume=1000)  # Liquid weekly options
@@ -836,6 +842,15 @@ def yfinance_get_options_chain(
 
         if not available_expirations:
             return format_response({"error": f"No options data available for {ticker}"}, response_format)
+
+        # If only dates requested, return early without fetching contract data
+        if dates_only:
+            result = {
+                "ticker": ticker,
+                "available_expirations": list(available_expirations),
+                "total_expirations": len(available_expirations)
+            }
+            return format_response(result, response_format)
 
         # Handle DTE (days to expiration) if specified
         if dte is not None:
