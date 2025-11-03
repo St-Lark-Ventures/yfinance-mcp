@@ -771,6 +771,8 @@ def yfinance_get_options_chain(
     ticker: str,
     expiration_date: Optional[str] = None,
     dte: Optional[int] = None,
+    target_date: Optional[str] = None,
+    max_dates: int = 1,
     option_type: Literal["calls", "puts", "both"] = "calls",
     strikes_near_price: Optional[int] = 10,
     in_the_money: Optional[bool] = None,
@@ -792,7 +794,17 @@ def yfinance_get_options_chain(
              - 30 for "monthly options"
              - 90 for "quarterly options"
              - 365 for "LEAPS" or "long-term options"
+             MUTUALLY EXCLUSIVE with target_date - cannot use both
              (default: None, uses nearest expiration)
+        target_date: Optional target date in 'YYYY-MM-DD' format to find closest expiration(s).
+             USE THIS when query mentions a specific date like "around Dec 15" or "near January"
+             MUTUALLY EXCLUSIVE with dte - cannot use both
+             (default: None)
+        max_dates: Number of closest expirations to return (works with dte or target_date).
+             - 1 = single closest expiration (default)
+             - 2 = two closest (one before, one after if possible)
+             - 3+ = N closest expirations around the target
+             (default: 1)
         option_type: 'calls', 'puts', or 'both'
              - Use 'both' when query mentions "what's available" or exploratory requests
              - Default: 'calls'
@@ -809,6 +821,8 @@ def yfinance_get_options_chain(
     Query interpretation:
         - "weekly options" → dte=7
         - "monthly options" → dte=30
+        - "around Dec 15" or "near December 20" → target_date="2024-12-15", target_date="2024-12-20"
+        - "3 expirations around..." → max_dates=3 with dte or target_date
         - "what options are available" → option_type="both"
         - "what expiration dates" or "what dates are available" → dates_only=True
         - "liquid/active options" → add min_volume and min_open_interest
@@ -817,14 +831,24 @@ def yfinance_get_options_chain(
     Returns:
         Options chain data with contract details, prices, volume, open interest, and implied volatility.
         If dates_only=True, returns only the list of available expiration dates.
+        If max_dates > 1, returns data for multiple expirations.
 
     Examples:
         yfinance_get_options_chain("SPY", dates_only=True)  # Just get available expiration dates
-        yfinance_get_options_chain("SPY", dte=7)  # Weekly options
-        yfinance_get_options_chain("AAPL", dte=30, option_type="both")  # Monthly calls and puts
+        yfinance_get_options_chain("SPY", dte=7)  # Weekly options (closest to 7 days)
+        yfinance_get_options_chain("SPY", dte=30, max_dates=3)  # 3 expirations around 30 days
+        yfinance_get_options_chain("AAPL", target_date="2024-12-15", max_dates=2, dates_only=True)  # 2 closest dates to Dec 15
         yfinance_get_options_chain("TSLA", dte=7, min_volume=1000)  # Liquid weekly options
     """
     try:
+        from datetime import datetime, timedelta
+
+        # Validate mutual exclusivity of dte and target_date
+        if dte is not None and target_date is not None:
+            return format_response({
+                "error": "Cannot specify both 'dte' and 'target_date' - they are mutually exclusive. Use dte for relative dates (e.g., 30 days from today) or target_date for specific dates (e.g., '2024-12-15')."
+            }, response_format)
+
         stock = yf.Ticker(ticker)
 
         # Get current stock price for strikes_near_price filtering
@@ -843,68 +867,57 @@ def yfinance_get_options_chain(
         if not available_expirations:
             return format_response({"error": f"No options data available for {ticker}"}, response_format)
 
-        # If only dates requested, return early without fetching contract data
-        if dates_only:
-            result = {
-                "ticker": ticker,
-                "available_expirations": list(available_expirations),
-                "total_expirations": len(available_expirations)
-            }
-            return format_response(result, response_format)
+        # Determine target datetime and find N closest expirations
+        selected_expirations = []
+        show_available = False
 
-        # Handle DTE (days to expiration) if specified
-        if dte is not None:
-            from datetime import datetime, timedelta
-            target_date = datetime.now() + timedelta(days=dte)
+        if dte is not None or target_date is not None:
+            # Calculate target datetime
+            if dte is not None:
+                target_dt = datetime.now() + timedelta(days=dte)
+            else:  # target_date is not None
+                target_dt = datetime.strptime(target_date, "%Y-%m-%d")
 
-            # Find the expiration closest to the target DTE
-            closest_exp = None
-            min_diff = float('inf')
-
+            # Find N closest expirations to the target
+            exp_with_diff = []
             for exp_str in available_expirations:
                 exp_date = datetime.strptime(exp_str, "%Y-%m-%d")
-                diff = abs((exp_date - target_date).days)
-                if diff < min_diff:
-                    min_diff = diff
-                    closest_exp = exp_str
+                diff = abs((exp_date - target_dt).days)
+                exp_with_diff.append((exp_str, diff))
 
-            expiration_date = closest_exp
+            # Sort by difference and take the N closest
+            exp_with_diff.sort(key=lambda x: x[1])
+            selected_expirations = [exp for exp, diff in exp_with_diff[:max_dates]]
             show_available = True
-        # If no expiration specified, return available dates and use nearest
-        elif expiration_date is None:
-            expiration_date = available_expirations[0]
-            show_available = True
-        else:
-            show_available = False
-            # Validate the provided expiration date
+
+        elif expiration_date is not None:
+            # Specific expiration date provided
             if expiration_date not in available_expirations:
                 return format_response({
                     "error": f"Expiration date {expiration_date} not available for {ticker}",
                     "available_expirations": list(available_expirations)
                 }, response_format)
+            selected_expirations = [expiration_date]
+            show_available = False
 
-        # Get options chain for the specified expiration
-        opt_chain = stock.option_chain(expiration_date)
+        else:
+            # No parameters specified, use nearest expiration
+            selected_expirations = [available_expirations[0]]
+            show_available = True
 
-        result = {
-            "ticker": ticker,
-            "expiration_date": expiration_date,
-            "filters_applied": {
-                "option_type": option_type,
-                "strikes_near_price": strikes_near_price,
-                "in_the_money": in_the_money,
-                "min_volume": min_volume,
-                "min_open_interest": min_open_interest,
-                "strike_range": f"{strike_min} to {strike_max}" if strike_min or strike_max else None
+        # If only dates requested, return early without fetching contract data
+        if dates_only:
+            result = {
+                "ticker": ticker,
+                "selected_expirations": selected_expirations,
+                "count": len(selected_expirations)
             }
-        }
+            if show_available:
+                result["all_available_expirations"] = list(available_expirations)
+                result["total_available"] = len(available_expirations)
+            return format_response(result, response_format)
 
-        if current_price is not None:
-            result["current_price"] = float(current_price)
-
-        if show_available:
-            result["available_expirations"] = list(available_expirations)
-
+        # Helper function to process options dataframe
         def process_options(df, option_label):
             """Process and filter options dataframe"""
             # First, apply strikes_near_price filter if applicable
@@ -959,24 +972,64 @@ def yfinance_get_options_chain(
 
             return options_data
 
-        # Process based on option_type
-        if option_type in ["calls", "both"]:
-            calls_data = process_options(opt_chain.calls, "calls")
-            result["calls_count"] = len(calls_data)
-            result["calls"] = calls_data
+        # Fetch and process options for each selected expiration
+        expirations_data = []
 
-        if option_type in ["puts", "both"]:
-            puts_data = process_options(opt_chain.puts, "puts")
-            result["puts_count"] = len(puts_data)
-            result["puts"] = puts_data
+        for exp_date in selected_expirations:
+            # Get options chain for this expiration
+            opt_chain = stock.option_chain(exp_date)
 
-        # Add summary stats
-        if option_type == "both":
-            result["total_options"] = result.get("calls_count", 0) + result.get("puts_count", 0)
-        elif option_type == "calls":
-            result["total_options"] = result.get("calls_count", 0)
+            exp_result = {
+                "expiration_date": exp_date
+            }
+
+            # Process based on option_type
+            if option_type in ["calls", "both"]:
+                calls_data = process_options(opt_chain.calls, "calls")
+                exp_result["calls_count"] = len(calls_data)
+                exp_result["calls"] = calls_data
+
+            if option_type in ["puts", "both"]:
+                puts_data = process_options(opt_chain.puts, "puts")
+                exp_result["puts_count"] = len(puts_data)
+                exp_result["puts"] = puts_data
+
+            # Add summary stats for this expiration
+            if option_type == "both":
+                exp_result["total_options"] = exp_result.get("calls_count", 0) + exp_result.get("puts_count", 0)
+            elif option_type == "calls":
+                exp_result["total_options"] = exp_result.get("calls_count", 0)
+            else:
+                exp_result["total_options"] = exp_result.get("puts_count", 0)
+
+            expirations_data.append(exp_result)
+
+        # Build final result
+        result = {
+            "ticker": ticker,
+            "filters_applied": {
+                "option_type": option_type,
+                "strikes_near_price": strikes_near_price,
+                "in_the_money": in_the_money,
+                "min_volume": min_volume,
+                "min_open_interest": min_open_interest,
+                "strike_range": f"{strike_min} to {strike_max}" if strike_min or strike_max else None
+            }
+        }
+
+        if current_price is not None:
+            result["current_price"] = float(current_price)
+
+        if show_available:
+            result["available_expirations"] = list(available_expirations)
+
+        # If single expiration, flatten the structure for backward compatibility
+        if len(selected_expirations) == 1:
+            result.update(expirations_data[0])
         else:
-            result["total_options"] = result.get("puts_count", 0)
+            # Multiple expirations: return as array
+            result["expirations"] = expirations_data
+            result["count"] = len(expirations_data)
 
         return format_response(result, response_format)
     except Exception as e:

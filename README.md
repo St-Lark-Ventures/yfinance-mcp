@@ -146,11 +146,13 @@ Once configured with Claude Desktop, you can ask questions like:
 - "When is Apple's next earnings call?"
 - "Show me the earnings history for MSFT"
 - "What expiration dates does SPY have for options?" *(uses dates_only=True)*
-- "What options expiration dates are available for TSLA?" *(uses dates_only=True)*
+- "What are the 3 closest option expiration dates around December 15 for AAPL?" *(uses target_date="2024-12-15", max_dates=3, dates_only=True)*
+- "Show me options expiring around 30 days from now for SPY" *(uses dte=30)*
+- "Get 3 monthly expiration dates near 30 days out for TSLA" *(uses dte=30, max_dates=3, dates_only=True)*
 - "Get the options chain for TSLA"
 - "Show me the SPY options chain for weekly expiration" *(uses dte=7, shows actual option contracts)*
 - "Get AAPL call options expiring in about 30 days" *(uses dte=30, option_type="calls")*
-- "Show me near-the-money calls and puts for NVDA monthly options" *(uses dte=30, option_type="both", strikes_near_price=5)*
+- "Show me options for the 2 closest expirations around January 15" *(uses target_date="2025-01-15", max_dates=2)*
 - "Get highly liquid call options for SPY expiring next week" *(uses dte=7, min_volume, min_open_interest)*
 - "Show me protective put options for AAPL with monthly expiration" *(uses dte=30, option_type="puts", in_the_money=True)*
 - "What are the next 3 upcoming earnings dates for GOOGL?" *(uses future_only and limit parameters)*
@@ -342,7 +344,9 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 **Parameters:**
 - `ticker` (string): Stock ticker symbol
 - `expiration_date` (string, optional): Expiration date in 'YYYY-MM-DD' format. If None, uses nearest expiration (default: None)
-- `dte` (int, optional): Days to expiration - finds expiration closest to N days out. Overrides expiration_date if both specified (default: None)
+- `dte` (int, optional): Days to expiration - finds expiration closest to N days out. **Mutually exclusive with target_date** (default: None)
+- `target_date` (string, optional): Target date in 'YYYY-MM-DD' format to find closest expiration(s) to. **Mutually exclusive with dte** (default: None)
+- `max_dates` (int, optional): Number of closest expirations to return (works with dte or target_date). 1=single closest, 2=two closest, 3+=N closest (default: 1)
 - `option_type` (string, optional): Type of options - 'calls', 'puts', or 'both' (default: 'calls')
 - `strikes_near_price` (int, optional): Number of strikes to show above and below current price. None = all strikes (default: 10)
 - `in_the_money` (boolean, optional): Filter by ITM status - True for ITM only, False for OTM only, None for all (default: None)
@@ -354,8 +358,10 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
-- If `dates_only=True`: List of available expiration dates only
-- Otherwise: Current stock price (when strikes_near_price is used), available expiration dates, filters applied, and for each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
+- If `dates_only=True`: List of selected expiration dates (filtered by dte/target_date/max_dates if specified)
+- If `max_dates=1`: Single expiration with contract data (backward compatible format)
+- If `max_dates>1`: Array of expirations, each with contract data
+- Otherwise: Current stock price, filters applied, and for each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
 
 **Examples:**
 
@@ -364,8 +370,11 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 # Fast query: just get available expiration dates without contract data
 yfinance_get_options_chain("SPY", dates_only=True)
 
-# Check what expiration dates TSLA has available
-yfinance_get_options_chain("TSLA", dates_only=True)
+# Get 3 closest expirations to 30 days from now (dates only)
+yfinance_get_options_chain("SPY", dte=30, max_dates=3, dates_only=True)
+
+# Get 2 closest expirations around December 15 (dates only)
+yfinance_get_options_chain("AAPL", target_date="2024-12-15", max_dates=2, dates_only=True)
 ```
 
 **Basic Usage:**
@@ -393,6 +402,21 @@ yfinance_get_options_chain("MSFT", dte=90)
 
 # LEAPS (~365 days out, longer-term options)
 yfinance_get_options_chain("GOOGL", dte=365)
+```
+
+**Using Target Date and Multiple Expirations:**
+```python
+# Get options for expiration closest to December 15, 2024
+yfinance_get_options_chain("AAPL", target_date="2024-12-15")
+
+# Get 3 closest expirations around December 15 (full contract data for all 3)
+yfinance_get_options_chain("AAPL", target_date="2024-12-15", max_dates=3)
+
+# Get 3 monthly expirations around 30 days out
+yfinance_get_options_chain("SPY", dte=30, max_dates=3)
+
+# Get 2 closest expirations to 60 days out, calls and puts
+yfinance_get_options_chain("TSLA", dte=60, max_dates=2, option_type="both")
 ```
 
 **Common Trading Scenarios:**
