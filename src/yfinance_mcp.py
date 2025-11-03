@@ -805,8 +805,8 @@ def yfinance_get_options_chain(
              - 1 = single closest expiration (default)
              - 2 = two closest (one before, one after if possible)
              - 3+ = N closest expirations around the target
-             **IMPORTANT: When comparing activity across multiple expirations, use limit with summary=True
-             in a SINGLE call instead of making multiple separate calls.** (default: 1)
+             **EFFICIENCY: Always use limit parameter to get multiple expirations in ONE call,
+             rather than making multiple separate calls with different dte values.** (default: 1)
         option_type: 'calls', 'puts', or 'both'
              - Use 'both' when query mentions "what's available" or exploratory requests
              - Default: 'calls'
@@ -824,7 +824,7 @@ def yfinance_get_options_chain(
                  Returns: total volume, open interest, strike ranges, avg IV, most active strikes,
                  put/call ratios. **Use this for queries asking for "summary", "activity", "overview",
                  or "sentiment" - NOT for queries asking for specific contracts/strikes.**
-                 **Combine with limit>1 to compare activity across multiple expirations in ONE call.** (default: False)
+                 Works seamlessly with limit parameter to analyze multiple expirations. (default: False)
         response_format: 'json' or 'markdown' (default: 'markdown')
 
     Query interpretation:
@@ -832,7 +832,8 @@ def yfinance_get_options_chain(
         - "monthly options" → dte=30
         - "around Dec 15" or "near December 20" → target_date="2024-12-15", target_date="2024-12-20"
         - "3 expirations around..." → limit=3 with dte or target_date
-        - "compare activity across multiple expirations" → dte=30, limit=3, summary=True, option_type="both" (ONE call, not multiple)
+        - **For multiple time periods (weekly, monthly, quarterly): Use dte with limit, NOT separate calls**
+          Example: "compare weekly, monthly, quarterly" → dte=30, limit=3 (gets ~weekly, ~monthly, ~next monthly in ONE call)
         - "what options are available" → option_type="both"
         - "what expiration dates" or "what dates are available" → fields=["expiration_dates"]
         - "activity summary", "options activity", "market sentiment", or any query with "summary" → summary=True
@@ -847,11 +848,12 @@ def yfinance_get_options_chain(
 
     Examples:
         yfinance_get_options_chain("SPY", fields=["expiration_dates"])  # Just get available expiration dates
-        yfinance_get_options_chain("SPY", dte=7, summary=True)  # Weekly options activity summary
-        yfinance_get_options_chain("TSLA", dte=30, limit=3, summary=True, option_type="both")  # Compare activity across 3 expirations (ONE call)
         yfinance_get_options_chain("SPY", dte=7)  # Weekly options (closest to 7 days)
-        yfinance_get_options_chain("SPY", dte=30, limit=3)  # 3 expirations around 30 days
-        yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, fields=["expiration_dates"])  # 2 closest dates to Dec 15
+        yfinance_get_options_chain("SPY", dte=7, summary=True)  # Weekly options activity summary
+        yfinance_get_options_chain("SPY", dte=30, limit=3)  # Get 3 expirations around 30 days (detailed contracts)
+        yfinance_get_options_chain("TSLA", dte=30, limit=3, summary=True, option_type="both")  # Compare activity across 3 expirations
+        yfinance_get_options_chain("AAPL", dte=30, limit=3, fields=["expiration_dates"])  # Get 3 expiration dates around 30 days
+        yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2)  # 2 closest expirations to Dec 15 (detailed)
         yfinance_get_options_chain("TSLA", dte=7, min_volume=1000)  # Liquid weekly options
     """
     try:
