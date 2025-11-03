@@ -888,6 +888,8 @@ def yfinance_get_options_chain(
             # Sort by difference and take the N closest
             exp_with_diff.sort(key=lambda x: x[1])
             selected_expirations = [exp for exp, diff in exp_with_diff[:max_dates]]
+            # Sort selected expirations chronologically for display
+            selected_expirations.sort()
             show_available = True
 
         elif expiration_date is not None:
@@ -912,7 +914,9 @@ def yfinance_get_options_chain(
                 "selected_expirations": selected_expirations,
                 "count": len(selected_expirations)
             }
-            if show_available:
+            # Only show all available expirations if user asked for all (no filtering)
+            # If they used dte, target_date, or max_dates, they want filtered results only
+            if dte is None and target_date is None and expiration_date is None:
                 result["all_available_expirations"] = list(available_expirations)
                 result["total_available"] = len(available_expirations)
             return format_response(result, response_format)
