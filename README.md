@@ -355,10 +355,12 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 - `strike_min` (float, optional): Minimum strike price filter (default: None)
 - `strike_max` (float, optional): Maximum strike price filter (default: None)
 - `fields` (list of strings, optional): Which fields/data to return. Special values: `["expiration_dates"]` or `["expirations"]` returns only dates without contract data (default: None, returns full contract data)
+- `summary` (boolean, optional): If True, return aggregate statistics instead of individual contracts. Includes total volume/OI, strike ranges, avg IV, most active strikes, put/call ratios. Use for market analysis and activity overview (default: False)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
 - If `fields=["expiration_dates"]`: List of selected expiration dates (filtered by dte/target_date/limit if specified)
+- If `summary=True`: Aggregate statistics including total volume, open interest, strike ranges, average implied volatility, most active strikes, and put/call ratios
 - If `limit=1`: Single expiration with contract data (backward compatible format)
 - If `limit>1`: Array of expirations, each with contract data
 - Otherwise: Current stock price, filters applied, and for each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
@@ -375,6 +377,24 @@ yfinance_get_options_chain("SPY", dte=30, limit=3, fields=["expiration_dates"])
 
 # Get 2 closest expirations around December 15 (dates only)
 yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, fields=["expiration_dates"])
+```
+
+**Getting Aggregate Statistics (Summary):**
+```python
+# Get aggregate statistics for weekly options on SPY
+yfinance_get_options_chain("SPY", dte=7, summary=True, option_type="both")
+# Returns: total volume/OI for calls and puts, strike ranges, avg IV,
+# most active strikes, put/call ratios (volume and OI)
+
+# Check options activity for monthly AAPL options (calls only)
+yfinance_get_options_chain("AAPL", dte=30, summary=True, option_type="calls")
+
+# Analyze market sentiment for TSLA using put/call ratios
+yfinance_get_options_chain("TSLA", dte=7, summary=True, option_type="both")
+# Look at put/call ratios: >1 suggests bearish sentiment, <1 suggests bullish
+
+# Compare activity across multiple expirations
+yfinance_get_options_chain("SPY", dte=30, limit=3, summary=True, option_type="both")
 ```
 
 **Basic Usage:**

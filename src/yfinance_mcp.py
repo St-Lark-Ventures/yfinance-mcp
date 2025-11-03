@@ -781,6 +781,7 @@ def yfinance_get_options_chain(
     strike_min: Optional[float] = None,
     strike_max: Optional[float] = None,
     fields: Optional[Union[List[str], str]] = None,
+    summary: bool = False,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -818,6 +819,9 @@ def yfinance_get_options_chain(
                 - ["expiration_dates"] or ["expirations"] = return only dates without contract data
                 - None (default) = return full contract data
                 Use for queries like "what expiration dates does [ticker] have?"
+        summary: If True, return aggregate statistics instead of individual contracts.
+                 Includes: total volume, open interest, strike ranges, avg IV, most active strikes,
+                 put/call ratios. Use for market analysis and activity overview. (default: False)
         response_format: 'json' or 'markdown' (default: 'markdown')
 
     Query interpretation:
@@ -827,16 +831,19 @@ def yfinance_get_options_chain(
         - "3 expirations around..." → limit=3 with dte or target_date
         - "what options are available" → option_type="both"
         - "what expiration dates" or "what dates are available" → fields=["expiration_dates"]
+        - "options activity" or "market sentiment" → summary=True
         - "liquid/active options" → add min_volume and min_open_interest
         - Don't add filters unless specifically requested
 
     Returns:
         Options chain data with contract details, prices, volume, open interest, and implied volatility.
         If fields=["expiration_dates"], returns only the list of expiration dates.
+        If summary=True, returns aggregate statistics for market analysis.
         If limit > 1, returns data for multiple expirations.
 
     Examples:
         yfinance_get_options_chain("SPY", fields=["expiration_dates"])  # Just get available expiration dates
+        yfinance_get_options_chain("SPY", dte=7, summary=True)  # Weekly options activity summary
         yfinance_get_options_chain("SPY", dte=7)  # Weekly options (closest to 7 days)
         yfinance_get_options_chain("SPY", dte=30, limit=3)  # 3 expirations around 30 days
         yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, fields=["expiration_dates"])  # 2 closest dates to Dec 15
@@ -940,6 +947,84 @@ def yfinance_get_options_chain(
                 result["all_available_expirations"] = list(available_expirations)
                 result["total_available"] = len(available_expirations)
             return format_response(result, response_format)
+
+        # If summary requested, calculate aggregate statistics
+        if summary:
+            summary_data = {
+                "ticker": ticker,
+                "current_price": float(current_price) if current_price is not None else None,
+                "selected_expirations": selected_expirations,
+                "expirations_summary": []
+            }
+
+            for exp_date in selected_expirations:
+                opt_chain = stock.option_chain(exp_date)
+
+                exp_summary = {
+                    "expiration_date": exp_date
+                }
+
+                # Process calls statistics
+                if option_type in ["calls", "both"]:
+                    calls_df = opt_chain.calls
+                    if not calls_df.empty:
+                        calls_stats = {
+                            "total_volume": int(calls_df["volume"].sum()),
+                            "total_open_interest": int(calls_df["openInterest"].sum()),
+                            "strike_range": {
+                                "min": float(calls_df["strike"].min()),
+                                "max": float(calls_df["strike"].max())
+                            },
+                            "avg_implied_volatility": float(calls_df["impliedVolatility"].mean()) if calls_df["impliedVolatility"].notna().any() else None,
+                            "most_active_by_volume": {
+                                "strike": float(calls_df.loc[calls_df["volume"].idxmax(), "strike"]) if calls_df["volume"].max() > 0 else None,
+                                "volume": int(calls_df["volume"].max())
+                            },
+                            "most_active_by_oi": {
+                                "strike": float(calls_df.loc[calls_df["openInterest"].idxmax(), "strike"]) if calls_df["openInterest"].max() > 0 else None,
+                                "open_interest": int(calls_df["openInterest"].max())
+                            }
+                        }
+                        exp_summary["calls"] = calls_stats
+
+                # Process puts statistics
+                if option_type in ["puts", "both"]:
+                    puts_df = opt_chain.puts
+                    if not puts_df.empty:
+                        puts_stats = {
+                            "total_volume": int(puts_df["volume"].sum()),
+                            "total_open_interest": int(puts_df["openInterest"].sum()),
+                            "strike_range": {
+                                "min": float(puts_df["strike"].min()),
+                                "max": float(puts_df["strike"].max())
+                            },
+                            "avg_implied_volatility": float(puts_df["impliedVolatility"].mean()) if puts_df["impliedVolatility"].notna().any() else None,
+                            "most_active_by_volume": {
+                                "strike": float(puts_df.loc[puts_df["volume"].idxmax(), "strike"]) if puts_df["volume"].max() > 0 else None,
+                                "volume": int(puts_df["volume"].max())
+                            },
+                            "most_active_by_oi": {
+                                "strike": float(puts_df.loc[puts_df["openInterest"].idxmax(), "strike"]) if puts_df["openInterest"].max() > 0 else None,
+                                "open_interest": int(puts_df["openInterest"].max())
+                            }
+                        }
+                        exp_summary["puts"] = puts_stats
+
+                # Calculate put/call ratios if both available
+                if option_type == "both" and "calls" in exp_summary and "puts" in exp_summary:
+                    call_volume = exp_summary["calls"]["total_volume"]
+                    put_volume = exp_summary["puts"]["total_volume"]
+                    call_oi = exp_summary["calls"]["total_open_interest"]
+                    put_oi = exp_summary["puts"]["total_open_interest"]
+
+                    exp_summary["put_call_ratios"] = {
+                        "volume": round(put_volume / call_volume, 3) if call_volume > 0 else None,
+                        "open_interest": round(put_oi / call_oi, 3) if call_oi > 0 else None
+                    }
+
+                summary_data["expirations_summary"].append(exp_summary)
+
+            return format_response(summary_data, response_format)
 
         # Helper function to process options dataframe
         def process_options(df, option_label):
