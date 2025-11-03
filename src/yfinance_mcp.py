@@ -169,7 +169,7 @@ def yfinance_get_stock_history(
     period: str = "1mo",
     interval: str = "1d",
     limit: Optional[int] = None,
-    summary_only: bool = False,
+    summary: bool = False,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -180,18 +180,18 @@ def yfinance_get_stock_history(
         period: Time period - valid values: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max (default: '1mo')
         interval: Data interval - valid values: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo (default: '1d')
         limit: Maximum number of most recent data points to return (default: None, returns all)
-        summary_only: If True, return summary statistics instead of all data points (default: False)
+        summary: If True, return summary statistics instead of all data points (default: False)
         response_format: Output format - 'json' or 'markdown' (default: 'markdown')
 
     Returns:
         Formatted string with historical price data or summary statistics.
-        When summary_only=True, returns: high, low, avg close, total volume, start/end dates.
+        When summary=True, returns: high, low, avg close, total volume, start/end dates.
         When limit is set, returns only the N most recent data points.
 
     Example:
         yfinance_get_stock_history("AAPL", "1y", "1d", "json")
         yfinance_get_stock_history("AAPL", "1y", "1d", limit=30)  # Last 30 days
-        yfinance_get_stock_history("AAPL", "1y", "1d", summary_only=True)  # Just summary
+        yfinance_get_stock_history("AAPL", "1y", "1d", summary=True)  # Just summary
     """
     try:
         stock = yf.Ticker(ticker)
@@ -200,8 +200,8 @@ def yfinance_get_stock_history(
         if hist.empty:
             return format_response({"error": f"No historical data found for {ticker} with period={period}, interval={interval}"}, response_format)
 
-        # If summary_only, return summary statistics
-        if summary_only:
+        # If summary, return summary statistics
+        if summary:
             result = {
                 "ticker": ticker,
                 "period": period,
@@ -462,7 +462,7 @@ def yfinance_get_stock_recommendations(
 )
 def yfinance_get_stock_news(
     ticker: str,
-    max_items: int = 10,
+    limit: int = 10,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -470,7 +470,7 @@ def yfinance_get_stock_news(
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT', 'GOOGL')
-        max_items: Maximum number of news items to return (default: 10, max: 50)
+        limit: Maximum number of news items to return (default: 10, max: 50)
         response_format: Output format - 'json' or 'markdown' (default: 'markdown')
 
     Returns:
@@ -498,10 +498,10 @@ def yfinance_get_stock_news(
             "news": []
         }
 
-        # Limit max_items to prevent overwhelming responses
-        max_items = min(max_items, 50)
+        # Limit to prevent overwhelming responses
+        limit = min(limit, 50)
 
-        for item in news[:max_items]:
+        for item in news[:limit]:
             # If item is a dict, extract values from the nested 'content' field
             if isinstance(item, dict):
                 # News data is nested in the 'content' field
@@ -772,7 +772,7 @@ def yfinance_get_options_chain(
     expiration_date: Optional[str] = None,
     dte: Optional[int] = None,
     target_date: Optional[str] = None,
-    max_dates: int = 1,
+    limit: int = 1,
     option_type: Literal["calls", "puts", "both"] = "calls",
     strikes_near_price: Optional[int] = 10,
     in_the_money: Optional[bool] = None,
@@ -780,7 +780,7 @@ def yfinance_get_options_chain(
     min_open_interest: Optional[int] = None,
     strike_min: Optional[float] = None,
     strike_max: Optional[float] = None,
-    dates_only: bool = False,
+    summary: bool = False,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -800,7 +800,7 @@ def yfinance_get_options_chain(
              USE THIS when query mentions a specific date like "around Dec 15" or "near January"
              MUTUALLY EXCLUSIVE with dte - cannot use both
              (default: None)
-        max_dates: Number of closest expirations to return (works with dte or target_date).
+        limit: Number of closest expirations to return (works with dte or target_date).
              - 1 = single closest expiration (default)
              - 2 = two closest (one before, one after if possible)
              - 3+ = N closest expirations around the target
@@ -814,30 +814,30 @@ def yfinance_get_options_chain(
         min_open_interest: Minimum open interest filter - ONLY use if query mentions "liquid" or "active" (default: None)
         strike_min: Minimum strike price (default: None)
         strike_max: Maximum strike price (default: None)
-        dates_only: If True, return only the list of available expiration dates without contract data.
-                    Use for queries like "what expiration dates does [ticker] have?" (default: False)
+        summary: If True, return only the list of expiration dates without contract data.
+                 Use for queries like "what expiration dates does [ticker] have?" (default: False)
         response_format: 'json' or 'markdown' (default: 'markdown')
 
     Query interpretation:
         - "weekly options" → dte=7
         - "monthly options" → dte=30
         - "around Dec 15" or "near December 20" → target_date="2024-12-15", target_date="2024-12-20"
-        - "3 expirations around..." → max_dates=3 with dte or target_date
+        - "3 expirations around..." → limit=3 with dte or target_date
         - "what options are available" → option_type="both"
-        - "what expiration dates" or "what dates are available" → dates_only=True
+        - "what expiration dates" or "what dates are available" → summary=True
         - "liquid/active options" → add min_volume and min_open_interest
         - Don't add filters unless specifically requested
 
     Returns:
         Options chain data with contract details, prices, volume, open interest, and implied volatility.
-        If dates_only=True, returns only the list of available expiration dates.
-        If max_dates > 1, returns data for multiple expirations.
+        If summary=True, returns only the list of expiration dates.
+        If limit > 1, returns data for multiple expirations.
 
     Examples:
-        yfinance_get_options_chain("SPY", dates_only=True)  # Just get available expiration dates
+        yfinance_get_options_chain("SPY", summary=True)  # Just get available expiration dates
         yfinance_get_options_chain("SPY", dte=7)  # Weekly options (closest to 7 days)
-        yfinance_get_options_chain("SPY", dte=30, max_dates=3)  # 3 expirations around 30 days
-        yfinance_get_options_chain("AAPL", target_date="2024-12-15", max_dates=2, dates_only=True)  # 2 closest dates to Dec 15
+        yfinance_get_options_chain("SPY", dte=30, limit=3)  # 3 expirations around 30 days
+        yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, summary=True)  # 2 closest dates to Dec 15
         yfinance_get_options_chain("TSLA", dte=7, min_volume=1000)  # Liquid weekly options
     """
     try:
@@ -887,7 +887,7 @@ def yfinance_get_options_chain(
 
             # Sort by difference and take the N closest
             exp_with_diff.sort(key=lambda x: x[1])
-            selected_expirations = [exp for exp, diff in exp_with_diff[:max_dates]]
+            selected_expirations = [exp for exp, diff in exp_with_diff[:limit]]
             # Sort selected expirations chronologically for display
             selected_expirations.sort()
             show_available = True
@@ -907,15 +907,15 @@ def yfinance_get_options_chain(
             selected_expirations = [available_expirations[0]]
             show_available = True
 
-        # If only dates requested, return early without fetching contract data
-        if dates_only:
+        # If summary requested, return early without fetching contract data
+        if summary:
             result = {
                 "ticker": ticker,
                 "selected_expirations": selected_expirations,
                 "count": len(selected_expirations)
             }
             # Only show all available expirations if user asked for all (no filtering)
-            # If they used dte, target_date, or max_dates, they want filtered results only
+            # If they used dte, target_date, or limit, they want filtered results only
             if dte is None and target_date is None and expiration_date is None:
                 result["all_available_expirations"] = list(available_expirations)
                 result["total_available"] = len(available_expirations)
