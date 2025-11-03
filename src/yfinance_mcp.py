@@ -780,7 +780,7 @@ def yfinance_get_options_chain(
     min_open_interest: Optional[int] = None,
     strike_min: Optional[float] = None,
     strike_max: Optional[float] = None,
-    summary: bool = False,
+    fields: Optional[Union[List[str], str]] = None,
     response_format: Literal["json", "markdown"] = "markdown"
 ) -> str:
     """
@@ -814,8 +814,10 @@ def yfinance_get_options_chain(
         min_open_interest: Minimum open interest filter - ONLY use if query mentions "liquid" or "active" (default: None)
         strike_min: Minimum strike price (default: None)
         strike_max: Maximum strike price (default: None)
-        summary: If True, return only the list of expiration dates without contract data.
-                 Use for queries like "what expiration dates does [ticker] have?" (default: False)
+        fields: Which fields/data to return. Special values:
+                - ["expiration_dates"] or ["expirations"] = return only dates without contract data
+                - None (default) = return full contract data
+                Use for queries like "what expiration dates does [ticker] have?"
         response_format: 'json' or 'markdown' (default: 'markdown')
 
     Query interpretation:
@@ -824,20 +826,20 @@ def yfinance_get_options_chain(
         - "around Dec 15" or "near December 20" → target_date="2024-12-15", target_date="2024-12-20"
         - "3 expirations around..." → limit=3 with dte or target_date
         - "what options are available" → option_type="both"
-        - "what expiration dates" or "what dates are available" → summary=True
+        - "what expiration dates" or "what dates are available" → fields=["expiration_dates"]
         - "liquid/active options" → add min_volume and min_open_interest
         - Don't add filters unless specifically requested
 
     Returns:
         Options chain data with contract details, prices, volume, open interest, and implied volatility.
-        If summary=True, returns only the list of expiration dates.
+        If fields=["expiration_dates"], returns only the list of expiration dates.
         If limit > 1, returns data for multiple expirations.
 
     Examples:
-        yfinance_get_options_chain("SPY", summary=True)  # Just get available expiration dates
+        yfinance_get_options_chain("SPY", fields=["expiration_dates"])  # Just get available expiration dates
         yfinance_get_options_chain("SPY", dte=7)  # Weekly options (closest to 7 days)
         yfinance_get_options_chain("SPY", dte=30, limit=3)  # 3 expirations around 30 days
-        yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, summary=True)  # 2 closest dates to Dec 15
+        yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, fields=["expiration_dates"])  # 2 closest dates to Dec 15
         yfinance_get_options_chain("TSLA", dte=7, min_volume=1000)  # Liquid weekly options
     """
     try:
@@ -907,8 +909,26 @@ def yfinance_get_options_chain(
             selected_expirations = [available_expirations[0]]
             show_available = True
 
-        # If summary requested, return early without fetching contract data
-        if summary:
+        # Check if only expiration dates requested (via fields parameter)
+        dates_only = False
+        if fields is not None:
+            # Handle fields parameter if passed as JSON string
+            if isinstance(fields, str):
+                try:
+                    fields = json.loads(fields)
+                except json.JSONDecodeError:
+                    # If it's not valid JSON, treat it as a single field
+                    fields = [fields]
+
+            # Check if requesting only expiration dates
+            for field in fields:
+                field_lower = field.lower()
+                if "expir" in field_lower:  # Matches "expiration", "expirations", "expiration_dates", etc.
+                    dates_only = True
+                    break
+
+        # If only dates requested, return early without fetching contract data
+        if dates_only:
             result = {
                 "ticker": ticker,
                 "selected_expirations": selected_expirations,

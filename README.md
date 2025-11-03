@@ -145,10 +145,10 @@ Once configured with Claude Desktop, you can ask questions like:
 **Earnings & Options:**
 - "When is Apple's next earnings call?"
 - "Show me the earnings history for MSFT"
-- "What expiration dates does SPY have for options?" *(uses summary=True)*
-- "What are the 3 closest option expiration dates around December 15 for AAPL?" *(uses target_date="2024-12-15", limit=3, summary=True)*
+- "What expiration dates does SPY have for options?" *(uses fields=["expiration_dates"])*
+- "What are the 3 closest option expiration dates around December 15 for AAPL?" *(uses target_date="2024-12-15", limit=3, fields=["expiration_dates"])*
 - "Show me options expiring around 30 days from now for SPY" *(uses dte=30)*
-- "Get 3 monthly expiration dates near 30 days out for TSLA" *(uses dte=30, limit=3, summary=True)*
+- "Get 3 monthly expiration dates near 30 days out for TSLA" *(uses dte=30, limit=3, fields=["expiration_dates"])*
 - "Get the options chain for TSLA"
 - "Show me the SPY options chain for weekly expiration" *(uses dte=7, shows actual option contracts)*
 - "Get AAPL call options expiring in about 30 days" *(uses dte=30, option_type="calls")*
@@ -354,11 +354,11 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 - `min_open_interest` (int, optional): Minimum open interest filter (default: None)
 - `strike_min` (float, optional): Minimum strike price filter (default: None)
 - `strike_max` (float, optional): Maximum strike price filter (default: None)
-- `summary` (boolean, optional): If True, return only available expiration dates without fetching contract data. Fast and efficient for exploratory queries (default: False)
+- `fields` (list of strings, optional): Which fields/data to return. Special values: `["expiration_dates"]` or `["expirations"]` returns only dates without contract data (default: None, returns full contract data)
 - `response_format` (string, optional): 'json' or 'markdown' (default: 'markdown')
 
 **Returns:**
-- If `summary=True`: List of selected expiration dates (filtered by dte/target_date/limit if specified)
+- If `fields=["expiration_dates"]`: List of selected expiration dates (filtered by dte/target_date/limit if specified)
 - If `limit=1`: Single expiration with contract data (backward compatible format)
 - If `limit>1`: Array of expirations, each with contract data
 - Otherwise: Current stock price, filters applied, and for each option: contract symbol, strike, last price, bid, ask, change, percent change, volume, open interest, implied volatility, in the money status, last trade date, contract size, currency
@@ -368,13 +368,13 @@ Get options chain data (calls and/or puts) with advanced filtering capabilities.
 **Getting Expiration Dates Only:**
 ```python
 # Fast query: just get available expiration dates without contract data
-yfinance_get_options_chain("SPY", summary=True)
+yfinance_get_options_chain("SPY", fields=["expiration_dates"])
 
 # Get 3 closest expirations to 30 days from now (dates only)
-yfinance_get_options_chain("SPY", dte=30, limit=3, summary=True)
+yfinance_get_options_chain("SPY", dte=30, limit=3, fields=["expiration_dates"])
 
 # Get 2 closest expirations around December 15 (dates only)
-yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, summary=True)
+yfinance_get_options_chain("AAPL", target_date="2024-12-15", limit=2, fields=["expiration_dates"])
 ```
 
 **Basic Usage:**
