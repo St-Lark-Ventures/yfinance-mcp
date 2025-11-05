@@ -943,16 +943,15 @@ def yfinance_get_options_chain(
 
         # If only dates requested, return early without fetching contract data
         if dates_only:
+            # When no filtering is applied, return all expirations (not just the first one)
+            if dte is None and target_date is None and expiration_date is None:
+                selected_expirations = list(available_expirations)
+
             result = {
                 "ticker": ticker,
-                "selected_expirations": selected_expirations,
+                "expiration_dates": selected_expirations,
                 "count": len(selected_expirations)
             }
-            # Only show all available expirations if user asked for all (no filtering)
-            # If they used dte, target_date, or limit, they want filtered results only
-            if dte is None and target_date is None and expiration_date is None:
-                result["all_available_expirations"] = list(available_expirations)
-                result["total_available"] = len(available_expirations)
             return format_response(result, response_format)
 
         # If summary requested, calculate aggregate statistics
