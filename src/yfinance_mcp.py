@@ -1136,7 +1136,9 @@ def yfinance_get_options_chain(
         if current_price is not None:
             result["current_price"] = float(current_price)
 
-        if show_available:
+        # Only show all available expirations if user asked for all (no filtering)
+        # If they used dte, target_date, or expiration_date, they want filtered results only
+        if show_available and dte is None and target_date is None and expiration_date is None:
             result["available_expirations"] = list(available_expirations)
 
         # If single expiration, flatten the structure for backward compatibility
