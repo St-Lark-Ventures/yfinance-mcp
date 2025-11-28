@@ -35,7 +35,7 @@ This MCP server provides **10 comprehensive tools**:
 ### Prerequisites
 
 - Python 3.10 or higher
-- pip (Python package installer)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
 
 ### Setup
 
@@ -44,64 +44,83 @@ This MCP server provides **10 comprehensive tools**:
 cd yfinance-mcp
 ```
 
-2. Create a virtual environment (recommended):
+2. Install dependencies with uv:
 ```bash
-python -m venv venv
-
-# On Windows
-venv\Scripts\activate
-
-# On macOS/Linux
-source venv/bin/activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Configuration
 
 To use this MCP server with Claude Desktop or other MCP clients, add it to your MCP settings configuration file.
 
-### Claude Desktop Configuration
+### Claude Code
 
-**Step 1: Edit your Claude Desktop configuration file:**
+First, install [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview):
 
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Linux**: `~/.config/Claude/claude_desktop_config.json`
-
-**Step 2: Add the server configuration:**
-
-**Windows Configuration (Recommended):**
-```json
-{
-  "mcpServers": {
-    "yfinance": {
-      "command": "cmd",
-      "args": ["/c", "cd /d C:\\yfinance-mcp && C:\\yfinance-mcp\\venv\\Scripts\\python.exe -m src.yfinance_mcp"]
-    }
-  }
-}
+```bash
+npm install -g @anthropic-ai/claude-code
 ```
 
-**macOS/Linux Configuration:**
-```json
-{
-  "mcpServers": {
-    "yfinance": {
-      "command": "/bin/bash",
-      "args": ["-c", "cd /path/to/yfinance-mcp && ./venv/bin/python -m src.yfinance_mcp"]
-    }
-  }
-}
+Use the following command to add the yfinance MCP server to your local environment.
+This assumes `uvx` is in your $PATH; if not, provide the full path to `uvx`.
+
+```bash
+claude mcp add yfinance -- uvx --from git+https://github.com/yourusername/yfinance-mcp yfinance-mcp
 ```
 
-**Important Notes:**
-- Replace `C:\\yfinance-mcp` (Windows) or `/path/to/yfinance-mcp` (macOS/Linux) with your actual installation path
-- The configuration uses the virtual environment's Python interpreter to ensure all dependencies are available
-- Make sure you've created the venv and installed requirements before using this configuration
+This command will install the MCP server in your current project.
+If you want to install it globally, run the command with `-s user` flag.
+
+To start Claude Code, run `claude` in your terminal.
+
+You can also run `claude mcp add-from-claude-desktop` if the MCP server is installed already for Claude Desktop.
+
+### Claude Desktop
+
+1. Follow the [Claude Desktop MCP installation instructions](https://modelcontextprotocol.io/quickstart/user) to complete the initial installation and find your configuration file.
+
+2. Use the following example as reference to add the yfinance MCP server.
+   - Find your path to `uvx` by running `which uvx` in your terminal.
+   - Replace `<your_home_directory>` with your home directory path.
+
+**Configuration file locations:**
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+<details>
+  <summary>claude_desktop_config.json</summary>
+
+```json
+{
+    "mcpServers": {
+        "yfinance": {
+            "command": "<path_to_your_uvx_install>/uvx",
+            "args": [
+                "--from",
+                "git+https://github.com/yourusername/yfinance-mcp",
+                "yfinance-mcp"
+            ],
+            "env": {
+                "HOME": "<your_home_directory>"
+            }
+        }
+    }
+}
+```
+</details>
+
+## Transport Configuration
+
+By default, STDIO transport is used.
+
+To configure [SSE](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse) or [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http), set the `MCP_TRANSPORT` environment variable.
+
+Example:
+
+```bash
+MCP_TRANSPORT=streamable-http uv run entrypoint.py
+```
 
 ## Usage
 
@@ -110,7 +129,7 @@ To use this MCP server with Claude Desktop or other MCP clients, add it to your 
 You can test the server by running it directly:
 
 ```bash
-python src/yfinance_mcp.py
+uv run yfinance-mcp
 ```
 
 ### Example Queries (via Claude Desktop)
@@ -552,22 +571,55 @@ This server uses the [yfinance](https://github.com/ranaroussi/yfinance) Python l
 
 ## Development
 
-### Testing the Server
+### Running Locally
 
 ```bash
-# Verify Python syntax
-python -m py_compile src/yfinance_mcp.py
+# Sync dependencies
+uv sync
 
-# Run the server (will wait for stdio input)
-python src/yfinance_mcp.py
+# Run the server
+uv run yfinance-mcp
 ```
+
+<details>
+  <summary>Local Dev Config for claude_desktop_config.json</summary>
+
+```json
+{
+  "mcpServers": {
+    "yfinance": {
+      "command": "/your/path/.cargo/bin/uv",
+      "args": [
+        "run",
+        "--with",
+        "/your/path/yfinance-mcp",
+        "yfinance-mcp"
+      ],
+      "env": {
+        "HOME": "/Users/yourusername"
+      }
+    }
+  }
+}
+```
+</details>
+
+### Debugging
+
+For debugging and testing, we recommend using the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+```bash
+npx @modelcontextprotocol/inspector uv --directory /path/to/yfinance-mcp run yfinance-mcp
+```
+
+This will launch a browser interface where you can interact with your MCP server directly and see input/output for each tool.
 
 ### Code Formatting
 
 This project uses Black for code formatting:
 
 ```bash
-black src/
+uv run black src/
 ```
 
 ### Project Structure
@@ -575,11 +627,13 @@ black src/
 ```
 yfinance-mcp/
 ├── src/
-│   ├── __init__.py
-│   └── yfinance_mcp.py          # Main server implementation
+│   └── yfinance_mcp/
+│       ├── __init__.py
+│       └── server.py             # Main server implementation
+├── entrypoint.py                 # Entry point for transport config
+├── .python-version               # Python version specification
 ├── .gitignore
 ├── pyproject.toml                # Project configuration
-├── requirements.txt              # Dependencies
 └── README.md                     # This file
 ```
 

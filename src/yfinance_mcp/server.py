@@ -1152,6 +1152,11 @@ def yfinance_get_options_chain(
         return format_response({"error": f"Failed to fetch options chain for {ticker}: {str(e)}"}, response_format)
 
 
+def run(transport: str = "stdio") -> None:
+    """Run the Yahoo Finance MCP server."""
+    mcp.run(transport=transport)
+
+
 if __name__ == "__main__":
     # Run the MCP server
-    mcp.run()
+    run()
