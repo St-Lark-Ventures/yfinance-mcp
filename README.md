@@ -65,7 +65,7 @@ Use the following command to add the yfinance MCP server to your local environme
 This assumes `uvx` is in your $PATH; if not, provide the full path to `uvx`.
 
 ```bash
-claude mcp add yfinance -- uvx --from git+https://github.com/yourusername/yfinance-mcp yfinance-mcp
+claude mcp add yfinance -- uvx --from git+https://github.com/mobatmedia/yfinance-mcp yfinance-mcp
 ```
 
 This command will install the MCP server in your current project.
@@ -98,7 +98,7 @@ You can also run `claude mcp add-from-claude-desktop` if the MCP server is insta
             "command": "<path_to_your_uvx_install>/uvx",
             "args": [
                 "--from",
-                "git+https://github.com/yourusername/yfinance-mcp",
+                "git+https://github.com/mobatmedia/yfinance-mcp",
                 "yfinance-mcp"
             ],
             "env": {
@@ -651,11 +651,15 @@ This server follows official MCP best practices:
 
 ## License
 
-This project is provided as-is for educational and informational purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Project Status
+
+This project is considered **feature-complete** at version 0.1.0. There is no active roadmap for additional features. Bug fixes and compatibility updates may be accepted, but no major new functionality is planned.
 
 ## Disclaimer
 
