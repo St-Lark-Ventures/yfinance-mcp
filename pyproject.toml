@@ -4,14 +4,14 @@ version = "0.1.0"
 description = "MCP server providing access to Yahoo Finance data via yfinance"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "MIT"}
 dependencies = [
     "fastmcp>=0.1.0",
     "yfinance>=0.2.0",
 ]
 
 [[project.authors]]
-name = "Your Name"
-email = "your.email@example.com"
+name = "mobatmedia"
 
 [build-system]
 requires = ["hatchling"]
@@ -20,11 +20,16 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
+    "pytest-mock>=3.12.0",
     "black>=23.0.0",
 ]
 
 [project.scripts]
 yfinance-mcp = "yfinance_mcp:run"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
 
 [tool.black]
 line-length = 100
