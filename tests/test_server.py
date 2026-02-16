@@ -163,3 +163,15 @@ class TestMarkdownEdgeCases:
         result = _format_as_markdown(data)
         assert "Outer" in result
         assert "inner_key" in result
+
+
+class TestDependencies:
+    """Tests that required dependencies are available."""
+
+    def test_lxml_is_importable(self):
+        """lxml is required by yfinance's get_earnings_dates (via pandas.read_html)."""
+        import lxml  # noqa: F401
+
+    def test_lxml_html_parser_available(self):
+        """The lxml HTML parser must be functional for pandas.read_html."""
+        from lxml import html  # noqa: F401
