@@ -37,9 +37,17 @@ def format_response(data: dict, response_format: str = "markdown") -> str:
 
     # Check character limit
     if len(result) > CHARACTER_LIMIT:
-        truncated_result = result[:CHARACTER_LIMIT]
-        truncation_msg = f"\n\n⚠️ Response truncated at {CHARACTER_LIMIT} characters. Use filters or pagination to reduce results."
-        return truncated_result + truncation_msg
+        if response_format == "json":
+            # Return a valid JSON response indicating truncation
+            return json.dumps({
+                "error": f"Response too large ({len(result)} characters). Use filters (strikes_near_price, strike_min/max, fields) or pagination to reduce results.",
+                "truncated": True,
+                "original_size": len(result)
+            }, indent=2)
+        else:
+            truncated_result = result[:CHARACTER_LIMIT]
+            truncation_msg = f"\n\n⚠️ Response truncated at {CHARACTER_LIMIT} characters. Use filters or pagination to reduce results."
+            return truncated_result + truncation_msg
 
     return result
 

@@ -31,12 +31,30 @@ class TestFormatResponse:
         assert "Ticker" in result
         assert "AAPL" in result
 
-    def test_truncation(self):
-        """Test response truncation at character limit."""
+    def test_truncation_markdown(self):
+        """Test markdown response truncation at character limit."""
         large_data = {"data": "x" * (CHARACTER_LIMIT + 1000)}
-        result = format_response(large_data, "json")
+        result = format_response(large_data, "markdown")
         assert len(result) <= CHARACTER_LIMIT + 200
         assert "truncated" in result.lower()
+
+    def test_json_truncation_produces_valid_json(self):
+        """Test that oversized JSON responses return valid JSON error (issue #1)."""
+        large_data = {"data": "x" * (CHARACTER_LIMIT + 1000)}
+        result = format_response(large_data, "json")
+        parsed = json.loads(result)
+        assert parsed["truncated"] is True
+        assert "error" in parsed
+
+    def test_json_with_control_characters_produces_valid_json(self):
+        """Test that control characters in data don't break JSON output (issue #1)."""
+        data = {
+            "contract": "ABBV260320C00200000",
+            "description": "Some text\x0cwith\x00control\x1bchars\x0d\x0a"
+        }
+        result = format_response(data, "json")
+        parsed = json.loads(result)
+        assert parsed["contract"] == "ABBV260320C00200000"
 
     def test_default_format_is_markdown(self):
         """Test that default format is markdown."""
